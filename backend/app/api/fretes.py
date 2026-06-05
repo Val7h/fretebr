@@ -37,6 +37,26 @@ def post_frete(
     db_frete = create_frete(db, current_user.id, frete)
     return db_frete
 
+@router.get("/meus-fretes", response_model=List[FreteResponse])
+def get_meus_fretes(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get current user's fretes (only motoristas)
+    """
+    # Check if user is a motorista
+    if current_user.tipo != UserType.motorista.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only motoristas can view their fretes"
+        )
+
+    fretes = get_motorista_fretes(db, current_user.id, skip=skip, limit=limit)
+    return fretes
+
 @router.get("", response_model=List[FreteResponse])
 def list_available_fretes(
     skip: int = Query(0, ge=0),
@@ -71,26 +91,6 @@ def get_frete_details(
             detail="Frete not found"
         )
     return frete
-
-@router.get("/meus-fretes", response_model=List[FreteResponse])
-def get_meus_fretes(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    current_user: UserResponse = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Get current user's fretes (only motoristas)
-    """
-    # Check if user is a motorista
-    if current_user.tipo != UserType.motorista.value:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only motoristas can view their fretes"
-        )
-
-    fretes = get_motorista_fretes(db, current_user.id, skip=skip, limit=limit)
-    return fretes
 
 @router.put("/{frete_id}", response_model=FreteResponse)
 def update_frete_details(
