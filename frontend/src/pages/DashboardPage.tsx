@@ -73,29 +73,36 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Next Features Card */}
+            {/* Role-based Actions Card */}
             <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Próximas Funcionalidades
+                Ações Rápidas
               </h3>
-              <ul className="space-y-2 text-gray-700">
-                <li className="flex items-start">
-                  <span className="mr-3">•</span>
-                  <span>Visualizar e gerenciar fretes</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-3">•</span>
-                  <span>Acompanhar entregas em tempo real</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-3">•</span>
-                  <span>Gerenciar documentos e recibos</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-3">•</span>
-                  <span>Análise de desempenho e ganhos</span>
-                </li>
-              </ul>
+              <div className="space-y-3">
+                {currentUser?.tipo === 'motorista' ? (
+                  <>
+                    <button
+                      onClick={() => navigate('/postar-frete')}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition text-left"
+                    >
+                      Postar Novo Frete
+                    </button>
+                    <button
+                      onClick={() => navigate('/meus-fretes')}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition text-left"
+                    >
+                      Meus Fretes
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => navigate('/procurar-fretes')}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition text-left"
+                  >
+                    Procurar Fretes
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
