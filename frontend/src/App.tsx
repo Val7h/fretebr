@@ -8,6 +8,9 @@ import { PostFretePage } from './pages/PostFretePage';
 import { FindFretePage } from './pages/FindFretePage';
 import { MyFretesPage } from './pages/MyFretesPage';
 import { FreteDetailPage } from './pages/FreteDetailPage';
+import { MyMatchesPage } from './pages/MyMatchesPage';
+import { MatchDetailPage } from './pages/MatchDetailPage';
+import { ChatPage } from './pages/ChatPage';
 
 function App() {
   return (
@@ -53,6 +56,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <FreteDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/meus-matches"
+            element={
+              <ProtectedRoute>
+                <MyMatchesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/match/:id"
+            element={
+              <ProtectedRoute>
+                <MatchDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/match/:id/chat"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
               </ProtectedRoute>
             }
           />

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import type { Frete } from '../services/api';
+import { matchesApi } from '../services/matchesApi';
 import { useAuth } from '../context/AuthContext';
 
 export const FreteDetailPage: React.FC = () => {
@@ -12,6 +13,8 @@ export const FreteDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -50,6 +53,24 @@ export const FreteDetailPage: React.FC = () => {
     }
   };
 
+  const handleAcceptFrete = async () => {
+    if (!frete) return;
+    setIsAccepting(true);
+    setError('');
+    try {
+      await matchesApi.acceptFrete({ frete_id: frete.id });
+      setSuccessMessage('Frete aceito com sucesso! Redirecionando para Meus Matches...');
+      setTimeout(() => {
+        navigate('/meus-matches');
+      }, 2000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao aceitar frete';
+      setError(errorMessage);
+      console.error('Error accepting frete:', err);
+      setIsAccepting(false);
+    }
+  };
+
   const isMotoristaOwner = currentUser?.tipo === 'motorista' && currentUser?.id === frete?.motorista_id;
 
   return (
@@ -72,6 +93,12 @@ export const FreteDetailPage: React.FC = () => {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-6">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-700 mb-6">
+            {successMessage}
           </div>
         )}
 
@@ -159,8 +186,12 @@ export const FreteDetailPage: React.FC = () => {
               </button>
 
               {currentUser?.tipo === 'shipper' && frete.status === 'disponível' && (
-                <button className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition">
-                  Quero Este Frete
+                <button
+                  onClick={handleAcceptFrete}
+                  disabled={isAccepting}
+                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-lg transition"
+                >
+                  {isAccepting ? 'Aceitando...' : 'Quero Este Frete'}
                 </button>
               )}
 

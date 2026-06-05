@@ -102,6 +102,12 @@ export const DashboardPage: React.FC = () => {
                     Procurar Fretes
                   </button>
                 )}
+                <button
+                  onClick={() => navigate('/meus-matches')}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition text-left"
+                >
+                  Meus Matches
+                </button>
               </div>
             </div>
           </div>
