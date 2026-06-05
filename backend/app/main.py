@@ -1,5 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.auth import router as auth_router
+from app.database import Base, engine
+
+# Create tables
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="FreteBR API",
@@ -15,6 +20,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(auth_router)
 
 @app.get("/health")
 async def health_check():
