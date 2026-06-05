@@ -5,7 +5,7 @@ from app.api.fretes import router as fretes_router
 from app.api.matches import router as matches_router
 from app.database import Base, engine
 # Import all models to register them with Base
-from app.models import User, Frete, Match, Message
+from app.models import User, Frete, Match, Message, Transaction
 
 # Create tables
 Base.metadata.create_all(bind=engine)

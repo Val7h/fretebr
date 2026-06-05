@@ -11,6 +11,9 @@ import { FreteDetailPage } from './pages/FreteDetailPage';
 import { MyMatchesPage } from './pages/MyMatchesPage';
 import { MatchDetailPage } from './pages/MatchDetailPage';
 import { ChatPage } from './pages/ChatPage';
+import { PaymentPage } from './pages/PaymentPage';
+import { ReceiptPage } from './pages/ReceiptPage';
+import { RatingPage } from './pages/RatingPage';
 
 function App() {
   return (
@@ -80,6 +83,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/match/:id/payment"
+            element={
+              <ProtectedRoute>
+                <PaymentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/match/:id/receipt"
+            element={
+              <ProtectedRoute>
+                <ReceiptPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/match/:id/rating"
+            element={
+              <ProtectedRoute>
+                <RatingPage />
               </ProtectedRoute>
             }
           />

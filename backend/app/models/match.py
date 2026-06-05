@@ -28,6 +28,7 @@ class Match(Base):
     frete = relationship("Frete", back_populates="matches")
     shipper = relationship("User", back_populates="matches_as_shipper", foreign_keys=[shipper_id])
     messages = relationship("Message", back_populates="match", cascade="all, delete-orphan")
+    transactions = relationship("Transaction", back_populates="match", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Match {self.id} - Frete {self.frete_id} - {self.status}>"
