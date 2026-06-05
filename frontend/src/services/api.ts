@@ -40,6 +40,29 @@ export interface AuthResponse {
   user: User;
 }
 
+export type FreteStatus = 'disponível' | 'aceito' | 'entregue' | 'cancelado';
+
+export interface Frete {
+  id: string;
+  motorista_id: string;
+  origem: string;
+  destino: string;
+  peso_kg: number;
+  valor_r: number;
+  status: FreteStatus;
+  descricao?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateFretePayload {
+  origem: string;
+  destino: string;
+  peso_kg: number;
+  valor_r: number;
+  descricao?: string;
+}
+
 export const apiService = {
   async signup(payload: SignupPayload): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('/auth/signup', payload);
@@ -53,6 +76,36 @@ export const apiService = {
 
   async getMe(): Promise<User> {
     const response = await api.get<User>('/auth/me');
+    return response.data;
+  },
+
+  // Frete endpoints
+  async getFretes(): Promise<Frete[]> {
+    const response = await api.get<Frete[]>('/fretes');
+    return response.data;
+  },
+
+  async getFreteById(id: string): Promise<Frete> {
+    const response = await api.get<Frete>(`/fretes/${id}`);
+    return response.data;
+  },
+
+  async createFrete(payload: CreateFretePayload): Promise<Frete> {
+    const response = await api.post<Frete>('/fretes', payload);
+    return response.data;
+  },
+
+  async updateFrete(id: string, payload: Partial<CreateFretePayload>): Promise<Frete> {
+    const response = await api.put<Frete>(`/fretes/${id}`, payload);
+    return response.data;
+  },
+
+  async deleteFrete(id: string): Promise<void> {
+    await api.delete(`/fretes/${id}`);
+  },
+
+  async getMyFretes(): Promise<Frete[]> {
+    const response = await api.get<Frete[]>('/meus-fretes');
     return response.data;
   },
 };
