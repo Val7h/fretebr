@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Enum as SQLEnum
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 from enum import Enum
@@ -20,6 +21,9 @@ class User(Base):
     cpf = Column(String, unique=True, nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=False, server_default=func.now())
+
+    # Relationship to Frete
+    fretes = relationship("Frete", back_populates="motorista")
 
     def __repr__(self):
         return f"<User {self.email}>"

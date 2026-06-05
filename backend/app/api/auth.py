@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
 from app.crud.user import create_user, get_user_by_email, get_user_by_id, verify_password, hash_password
-from python_jose import JWTError, jwt
+from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import os
 
@@ -31,7 +31,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(credentials: HTTPAuthCredentials = Depends(security), db: Session = Depends(get_db)) -> UserResponse:
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)) -> UserResponse:
     """
     Get current user from JWT token
     """
