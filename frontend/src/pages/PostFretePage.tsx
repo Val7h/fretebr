@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { apiService, CreateFretePayload } from '../services/api';
+import { apiService } from '../services/api';
+import type { CreateFretePayload } from '../services/api';
 import { FreteForm } from '../components/FreteForm';
 
 export const PostFretePage: React.FC = () => {

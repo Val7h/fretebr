@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Frete } from '../services/api';
+import type { Frete } from '../services/api';
 
 interface FreteCardProps {
   frete: Frete;

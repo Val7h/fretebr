@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreateFretePayload } from '../services/api';
+import type { CreateFretePayload } from '../services/api';
 
 const CIDADES = [
   'São Paulo (SP)',

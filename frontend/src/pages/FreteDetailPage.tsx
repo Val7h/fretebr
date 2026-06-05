@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiService, Frete } from '../services/api';
+import { apiService } from '../services/api';
+import type { Frete } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export const FreteDetailPage: React.FC = () => {

@@ -1,5 +1,5 @@
 import api from './api';
-import { Frete, CreateFretePayload } from './api';
+import type { Frete, CreateFretePayload } from './api';
 
 export const fretesApi = {
   async getFretes(): Promise<Frete[]> {
