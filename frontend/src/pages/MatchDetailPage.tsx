@@ -72,6 +72,7 @@ export const MatchDetailPage: React.FC = () => {
 
   const isMotoristaUser = currentUser?.tipo === 'motorista';
   const isMotoristaOwner = isMotoristaUser && match?.motorista_id === currentUser?.id;
+  const isShipperUser = !isMotoristaUser && match?.frete?.motorista_id;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -171,6 +172,16 @@ export const MatchDetailPage: React.FC = () => {
               >
                 Ir para Chat
               </button>
+
+              {match.status === 'finalizado' && isShipperUser && (
+                <button
+                  onClick={() => navigate(`/match/${match.id}/payment`)}
+                  disabled={isUpdating}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition font-bold text-lg"
+                >
+                  💳 Fazer Pagamento
+                </button>
+              )}
 
               {match.status === 'pendente' && (
                 <>

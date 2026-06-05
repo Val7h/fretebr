@@ -127,6 +127,20 @@ export const DashboardPage: React.FC = () => {
               <p className="text-gray-600 mt-2">Entregas Concluídas</p>
             </div>
           </div>
+
+          {/* Payment History Card */}
+          <div className="mt-8 bg-white border border-gray-200 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Histórico de Pagamentos</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">Nenhum pagamento realizado</p>
+                  <p className="text-sm text-gray-600">Seus pagamentos aparecerão aqui</p>
+                </div>
+                <span className="text-gray-400">📋</span>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
