@@ -2,9 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import router as auth_router
 from app.api.fretes import router as fretes_router
+from app.api.matches import router as matches_router
 from app.database import Base, engine
 # Import all models to register them with Base
-from app.models import User, Frete
+from app.models import User, Frete, Match, Message
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -27,6 +28,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(fretes_router)
+app.include_router(matches_router)
 
 @app.get("/health")
 async def health_check():

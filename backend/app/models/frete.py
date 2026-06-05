@@ -25,8 +25,9 @@ class Frete(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=False, server_default=func.now())
 
-    # Relationship to User
+    # Relationships
     motorista = relationship("User", back_populates="fretes")
+    matches = relationship("Match", back_populates="frete", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Frete {self.id} - {self.origem} to {self.destino}>"

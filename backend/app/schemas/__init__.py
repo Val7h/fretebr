@@ -1,5 +1,7 @@
 from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
 from app.schemas.frete import FreteBase, FreteCreate, FreteUpdate, FreteResponse
+from app.schemas.match import MatchBase, MatchCreate, MatchUpdate, MatchResponse, MatchWithMessages, MessageResponse
+from app.schemas.message import MessageCreate, MessageResponse
 
 __all__ = [
     "UserCreate",
@@ -9,5 +11,12 @@ __all__ = [
     "FreteBase",
     "FreteCreate",
     "FreteUpdate",
-    "FreteResponse"
+    "FreteResponse",
+    "MatchBase",
+    "MatchCreate",
+    "MatchUpdate",
+    "MatchResponse",
+    "MatchWithMessages",
+    "MessageCreate",
+    "MessageResponse"
 ]
