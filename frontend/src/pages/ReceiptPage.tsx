@@ -140,46 +140,46 @@ export const ReceiptPage: React.FC = () => {
         ) : (
           <div className="space-y-6">
             {/* Success Header */}
-            <div className="bg-white rounded-lg shadow-md p-8 text-center border-4 border-green-500">
-              <div className="text-6xl mb-4">✅</div>
-              <h1 className="text-3xl font-bold text-green-600 mb-2">Pagamento Confirmado</h1>
-              <p className="text-gray-600">Seu pagamento foi recebido com sucesso</p>
+            <div className="bg-white rounded-lg shadow-md p-6 sm:p-8 text-center border-4 border-green-500">
+              <div className="text-5xl sm:text-6xl mb-4">✅</div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-green-600 mb-2">Pagamento Confirmado</h1>
+              <p className="text-sm sm:text-base text-gray-600">Seu pagamento foi recebido com sucesso</p>
             </div>
 
             {/* Receipt - Invoice Style */}
-            <div className="bg-white rounded-lg shadow-md p-8 border-2 border-gray-200">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-8 border-2 border-gray-200">
               {/* Receipt Header */}
-              <div className="text-center mb-8 pb-8 border-b-2 border-gray-300">
-                <h2 className="text-2xl font-bold text-gray-900">FreteBR</h2>
-                <p className="text-sm text-gray-600">Recibo de Pagamento</p>
+              <div className="text-center mb-6 sm:mb-8 pb-6 sm:pb-8 border-b-2 border-gray-300">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">FreteBR</h2>
+                <p className="text-xs sm:text-sm text-gray-600">Recibo de Pagamento</p>
               </div>
 
               {/* Transaction Details */}
-              <div className="space-y-6">
+              <div className="space-y-3 sm:space-y-6">
                 {/* Transaction ID */}
-                <div className="flex justify-between border-b border-gray-200 pb-3">
-                  <span className="text-gray-600">Transaction ID</span>
-                  <span className="font-mono font-semibold text-gray-900">{match.id}</span>
+                <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-200 pb-3">
+                  <span className="text-xs sm:text-sm text-gray-600">Transaction ID</span>
+                  <span className="font-mono font-semibold text-gray-900 text-xs sm:text-sm break-all">{match.id}</span>
                 </div>
 
                 {/* Amount */}
-                <div className="flex justify-between border-b border-gray-200 pb-3">
-                  <span className="text-gray-600">Valor Pago</span>
-                  <span className="text-2xl font-bold text-green-600">
+                <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-200 pb-3">
+                  <span className="text-xs sm:text-sm text-gray-600">Valor Pago</span>
+                  <span className="text-xl sm:text-2xl font-bold text-green-600">
                     R$ {match.frete?.valor_r.toFixed(2)}
                   </span>
                 </div>
 
                 {/* Payment Method */}
-                <div className="flex justify-between border-b border-gray-200 pb-3">
-                  <span className="text-gray-600">Método de Pagamento</span>
-                  <span className="font-semibold text-gray-900">Pix</span>
+                <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-200 pb-3">
+                  <span className="text-xs sm:text-sm text-gray-600">Método de Pagamento</span>
+                  <span className="font-semibold text-gray-900 text-xs sm:text-sm">Pix</span>
                 </div>
 
                 {/* Date and Time */}
-                <div className="flex justify-between border-b border-gray-200 pb-3">
-                  <span className="text-gray-600">Data e Hora</span>
-                  <span className="font-semibold text-gray-900">
+                <div className="flex flex-col sm:flex-row sm:justify-between border-b border-gray-200 pb-3">
+                  <span className="text-xs sm:text-sm text-gray-600">Data e Hora</span>
+                  <span className="font-semibold text-gray-900 text-xs sm:text-sm">
                     {new Date().toLocaleDateString('pt-BR')} {new Date().toLocaleTimeString('pt-BR', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -188,27 +188,27 @@ export const ReceiptPage: React.FC = () => {
                 </div>
 
                 {/* Separator */}
-                <div className="border-t-2 border-gray-300 pt-6"></div>
+                <div className="border-t-2 border-gray-300 pt-4 sm:pt-6"></div>
 
                 {/* Frete Details */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalhes do Frete</h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Detalhes do Frete</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 bg-gray-50 p-3 sm:p-4 rounded-lg">
                     <div>
-                      <p className="text-sm text-gray-600">Origem</p>
-                      <p className="font-semibold text-gray-900">{match.frete?.origem}</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Origem</p>
+                      <p className="font-semibold text-gray-900 text-xs sm:text-sm break-words">{match.frete?.origem}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Destino</p>
-                      <p className="font-semibold text-gray-900">{match.frete?.destino}</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Destino</p>
+                      <p className="font-semibold text-gray-900 text-xs sm:text-sm break-words">{match.frete?.destino}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Peso</p>
-                      <p className="font-semibold text-gray-900">{match.frete?.peso_kg} kg</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Peso</p>
+                      <p className="font-semibold text-gray-900 text-xs sm:text-sm">{match.frete?.peso_kg} kg</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Status</p>
-                      <p className="font-semibold text-green-600 flex items-center gap-1">
+                      <p className="text-xs sm:text-sm text-gray-600">Status</p>
+                      <p className="font-semibold text-green-600 text-xs sm:text-sm flex items-center gap-1">
                         <span>Entregue</span>
                         <span>✅</span>
                       </p>
@@ -217,16 +217,16 @@ export const ReceiptPage: React.FC = () => {
                 </div>
 
                 {/* Participants */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
                     <p className="text-xs text-blue-600 font-semibold mb-2">REMETENTE (Shipper)</p>
-                    <p className="font-semibold text-gray-900">{match.shipper?.nome}</p>
-                    <p className="text-sm text-gray-600">{match.shipper?.email}</p>
+                    <p className="font-semibold text-gray-900 text-xs sm:text-sm break-words">{match.shipper?.nome}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 break-words">{match.shipper?.email}</p>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
                     <p className="text-xs text-green-600 font-semibold mb-2">TRANSPORTISTA (Motorista)</p>
-                    <p className="font-semibold text-gray-900">{match.motorista?.nome}</p>
-                    <p className="text-sm text-gray-600">{match.motorista?.email}</p>
+                    <p className="font-semibold text-gray-900 text-xs sm:text-sm break-words">{match.motorista?.nome}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 break-words">{match.motorista?.email}</p>
                   </div>
                 </div>
               </div>

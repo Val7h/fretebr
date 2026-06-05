@@ -120,11 +120,11 @@ export const RatingPage: React.FC = () => {
           </div>
         ) : success ? (
           /* Success State */
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <div className="text-6xl mb-4 animate-bounce">✅</div>
-            <h2 className="text-3xl font-bold text-green-600 mb-4">Obrigado pela Avaliação!</h2>
-            <p className="text-gray-600 mb-6">Sua avaliação foi registrada com sucesso.</p>
-            <p className="text-sm text-gray-500">Redirecionando para seus matches...</p>
+          <div className="bg-white rounded-lg shadow-md p-6 sm:p-8 text-center">
+            <div className="text-5xl sm:text-6xl mb-4 animate-bounce">✅</div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-green-600 mb-4">Obrigado pela Avaliação!</h2>
+            <p className="text-sm sm:text-base text-gray-600 mb-6">Sua avaliação foi registrada com sucesso.</p>
+            <p className="text-xs sm:text-sm text-gray-500">Redirecionando para seus matches...</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -134,28 +134,28 @@ export const RatingPage: React.FC = () => {
             </div>
 
             {/* User Info Section */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
                 {isMotoristaUser ? 'Avaliando Shipper' : 'Avaliando Motorista'}
               </h2>
-              <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg">
-                <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center">
-                  <span className="text-xl">👤</span>
+              <div className="flex items-center gap-3 sm:gap-4 bg-gray-50 p-3 sm:p-4 rounded-lg">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-lg sm:text-xl">👤</span>
                 </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{ratingTarget.nome}</p>
-                  <p className="text-sm text-gray-600">{ratingTarget.email}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm sm:text-base break-words">{ratingTarget.nome}</p>
+                  <p className="text-xs sm:text-sm text-gray-600 break-words">{ratingTarget.email}</p>
                 </div>
               </div>
             </div>
 
             {/* Frete Summary */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Resumo do Frete</h2>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Resumo do Frete</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
                 <div>
                   <p className="text-gray-600">Rota</p>
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-gray-900 break-words">
                     {match.frete?.origem} → {match.frete?.destino}
                   </p>
                 </div>
@@ -175,18 +175,18 @@ export const RatingPage: React.FC = () => {
             </div>
 
             {/* Rating Section */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">Sua Avaliação</h2>
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Sua Avaliação</h2>
 
               {/* Stars */}
-              <div className="mb-8">
-                <p className="text-sm text-gray-600 mb-4">Como foi sua experiência?</p>
-                <div className="flex justify-center gap-4 mb-4">
+              <div className="mb-6 sm:mb-8">
+                <p className="text-xs sm:text-sm text-gray-600 mb-4">Como foi sua experiência?</p>
+                <div className="flex justify-center gap-2 sm:gap-4 mb-4">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       onClick={() => setRating(star)}
-                      className={`text-5xl transition-transform ${
+                      className={`text-3xl sm:text-5xl transition-transform ${
                         star <= rating ? 'scale-125 text-yellow-400' : 'text-gray-300 hover:text-yellow-200'
                       }`}
                     >
@@ -195,14 +195,14 @@ export const RatingPage: React.FC = () => {
                   ))}
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-yellow-500 mb-1">{rating}/5</p>
-                  <p className="text-lg text-gray-600">{getRatingLabel(rating)}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-yellow-500 mb-1">{rating}/5</p>
+                  <p className="text-base sm:text-lg text-gray-600">{getRatingLabel(rating)}</p>
                 </div>
               </div>
 
               {/* Feedback Textarea */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Feedback (opcional)
                 </label>
                 <textarea
@@ -210,7 +210,7 @@ export const RatingPage: React.FC = () => {
                   onChange={(e) => setFeedback(e.target.value)}
                   placeholder="Diga-nos mais sobre sua experiência..."
                   maxLength={500}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                   rows={4}
                 />
                 <div className="text-right text-xs text-gray-500 mt-2">
@@ -223,7 +223,7 @@ export const RatingPage: React.FC = () => {
             <button
               onClick={handleSubmitRating}
               disabled={isSubmitting}
-              className={`w-full py-3 px-4 rounded-lg font-medium text-white transition ${
+              className={`w-full py-2 sm:py-3 px-4 rounded-lg font-medium text-white transition text-sm sm:text-base ${
                 isSubmitting
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-green-600 hover:bg-green-700'
@@ -236,7 +236,7 @@ export const RatingPage: React.FC = () => {
             <button
               onClick={() => navigate('/meus-matches')}
               disabled={isSubmitting}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-3 px-4 rounded-lg transition"
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 sm:py-3 px-4 rounded-lg transition text-sm sm:text-base"
             >
               Voltar sem Avaliar
             </button>

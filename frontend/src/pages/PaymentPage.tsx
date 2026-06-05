@@ -203,15 +203,15 @@ export const PaymentPage: React.FC = () => {
 
             {/* Frete Details */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Detalhes do Frete</h2>
-              <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Detalhes do Frete</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-sm">
                 <div>
                   <p className="text-gray-600">Origem</p>
-                  <p className="font-semibold text-gray-900">{match.frete?.origem}</p>
+                  <p className="font-semibold text-gray-900 break-words">{match.frete?.origem}</p>
                 </div>
                 <div>
                   <p className="text-gray-600">Destino</p>
-                  <p className="font-semibold text-gray-900">{match.frete?.destino}</p>
+                  <p className="font-semibold text-gray-900 break-words">{match.frete?.destino}</p>
                 </div>
                 <div>
                   <p className="text-gray-600">Peso</p>
@@ -219,7 +219,7 @@ export const PaymentPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-gray-600">Valor</p>
-                  <p className="font-semibold text-green-600">R$ {match.frete?.valor_r.toFixed(2)}</p>
+                  <p className="font-semibold text-green-600 text-lg">R$ {match.frete?.valor_r.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -252,39 +252,39 @@ export const PaymentPage: React.FC = () => {
             ) : (
               <>
                 {/* QR Code Section */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Código QR</h2>
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Código QR</h2>
                   <div className="flex flex-col items-center gap-4">
                     {payment.qr_code_url && (
                       <img
                         src={payment.qr_code_url}
                         alt="QR Code Pix"
-                        className="w-64 h-64 border-4 border-gray-200 rounded-lg"
+                        className="w-48 h-48 sm:w-64 sm:h-64 border-4 border-gray-200 rounded-lg"
                       />
                     )}
-                    <p className="text-center text-sm text-gray-600 max-w-sm">
+                    <p className="text-center text-sm text-gray-600 px-2">
                       Escaneie este código QR com seu banco para pagar via Pix
                     </p>
                   </div>
                 </div>
 
                 {/* Pix Key Section */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Chave Pix</h2>
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Chave Pix</h2>
                   <div className="flex flex-col gap-3">
-                    <p className="text-sm text-gray-600">
+                    <p className="text-xs sm:text-sm text-gray-600">
                       Ou copie a chave Pix abaixo para fazer a transferência manualmente:
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         type="text"
                         readOnly
                         value={payment.pix_key}
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-sm font-mono select-all"
+                        className="flex-1 px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg bg-gray-50 text-xs sm:text-sm font-mono select-all min-w-0"
                       />
                       <button
                         onClick={handleCopyPixKey}
-                        className={`px-6 py-3 font-medium rounded-lg transition whitespace-nowrap ${
+                        className={`px-4 sm:px-6 py-2 sm:py-3 font-medium rounded-lg transition whitespace-nowrap text-sm sm:text-base ${
                           pixKeyCopied
                             ? 'bg-green-600 hover:bg-green-700 text-white'
                             : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -297,25 +297,25 @@ export const PaymentPage: React.FC = () => {
                 </div>
 
                 {/* Status Section */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Status do Pagamento</h2>
+                <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">Status do Pagamento</h2>
                   <div className="space-y-4">
                     {/* Countdown Timer */}
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600 mb-2">Tempo restante</p>
+                    <div className="text-center bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <p className="text-xs sm:text-sm text-gray-600 mb-2">Tempo restante</p>
                       <div className="flex items-center justify-center gap-2">
-                        <div className="text-4xl font-bold text-blue-600 font-mono">
+                        <div className="text-3xl sm:text-4xl font-bold text-blue-600 font-mono">
                           {formatTime(timeLeft)}
                         </div>
-                        <div className="text-sm text-gray-600">segundos</div>
+                        <div className="text-xs sm:text-sm text-gray-600">segundos</div>
                       </div>
                     </div>
 
                     {/* Status Text */}
                     <div className="text-center">
-                      <div className="inline-flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
+                      <div className="inline-flex items-center gap-2 bg-blue-50 px-3 sm:px-4 py-2 rounded-full border border-blue-200">
                         <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                        <span className="text-blue-700 font-medium">Aguardando pagamento...</span>
+                        <span className="text-blue-700 font-medium text-sm sm:text-base">Aguardando pagamento...</span>
                       </div>
                     </div>
 
