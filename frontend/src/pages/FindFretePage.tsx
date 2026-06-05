@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiService, Frete } from '../services/api';
+import { apiService, type Frete } from '../services/api';
+import { FreteCard } from '../components/FreteCard';
+import { useAuth } from '../context/AuthContext';
 
 export const FindFretePage: React.FC = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [fretes, setFretes] = useState<Frete[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('disponível');
+  const [filterCity, setFilterCity] = useState<string>('');
 
   useEffect(() => {
     fetchFretes();
@@ -27,6 +32,42 @@ export const FindFretePage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // Filter fretes based on selected criteria
+  const filteredFretes = fretes.filter(frete => {
+    if (filterStatus !== 'all' && frete.status !== filterStatus) {
+      return false;
+    }
+    if (filterCity && !frete.destino.includes(filterCity)) {
+      return false;
+    }
+    return true;
+  });
+
+  // Get unique destination cities for filter
+  const destinyCities = Array.from(
+    new Set(fretes.map(f => f.destino.split('(')[1]?.replace(')', '') || ''))
+  ).filter(Boolean);
+
+  // Check if user is shipper
+  if (currentUser?.tipo !== 'shipper') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Acesso Negado</h1>
+          <p className="text-gray-700 mb-6">
+            Apenas shippers podem procurar fretes. Você está logado como {currentUser?.tipo}.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200"
+          >
+            Voltar ao Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -57,68 +98,73 @@ export const FindFretePage: React.FC = () => {
             </div>
           )}
 
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 pb-8 border-b border-gray-200">
+            <div>
+              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                Status
+              </label>
+              <select
+                id="status-filter"
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">Todos</option>
+                <option value="disponível">Disponível</option>
+                <option value="aceito">Aceito</option>
+                <option value="entregue">Entregue</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="city-filter" className="block text-sm font-medium text-gray-700 mb-2">
+                Destino
+              </label>
+              <select
+                id="city-filter"
+                value={filterCity}
+                onChange={e => setFilterCity(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Qualquer destino</option>
+                {destinyCities.map(city => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-gray-600">Carregando fretes...</div>
             </div>
-          ) : fretes.length === 0 ? (
+          ) : filteredFretes.length === 0 ? (
             <div className="flex items-center justify-center py-12">
-              <div className="text-gray-600">Nenhum frete disponível no momento</div>
+              <div className="text-center">
+                <p className="text-gray-600 mb-4">
+                  {fretes.length === 0
+                    ? 'Nenhum frete disponível no momento'
+                    : 'Nenhum frete encontrado com esses filtros'}
+                </p>
+                {fretes.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setFilterStatus('all');
+                      setFilterCity('');
+                    }}
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {fretes.map(frete => (
-                <div
-                  key={frete.id}
-                  className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition cursor-pointer"
-                  onClick={() => navigate(`/frete/${frete.id}`)}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Origem</p>
-                      <p className="text-lg font-semibold text-gray-900">{frete.origem}</p>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        frete.status === 'disponível'
-                          ? 'bg-green-100 text-green-800'
-                          : frete.status === 'aceito'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {frete.status}
-                    </span>
-                  </div>
-
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-600">Destino</p>
-                    <p className="text-lg font-semibold text-gray-900">{frete.destino}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-4 py-4 border-t border-gray-200">
-                    <div>
-                      <p className="text-xs text-gray-600">Peso</p>
-                      <p className="text-sm font-semibold text-gray-900">{frete.peso_kg} kg</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600">Valor</p>
-                      <p className="text-sm font-semibold text-gray-900">
-                        R$ {frete.valor_r.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition"
-                    onClick={e => {
-                      e.stopPropagation();
-                      navigate(`/frete/${frete.id}`);
-                    }}
-                  >
-                    Ver Detalhes
-                  </button>
-                </div>
+              {filteredFretes.map(frete => (
+                <FreteCard key={frete.id} frete={frete} />
               ))}
             </div>
           )}
