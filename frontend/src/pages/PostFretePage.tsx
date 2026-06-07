@@ -6,6 +6,7 @@ import {
   CALCULAR_PRECO_FRETE,
   ESTIMAR_TEMPO,
 } from '../data/freteData';
+import { MapaRota } from '../components/MapaRota';
 
 interface FormData {
   estado_origem: string;
@@ -348,19 +349,29 @@ export const PostFretePage = () => {
 
               {/* Resumo de Preço */}
               {precoCalculado && (
-                <div style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #556cd6 100%)',
-                  padding: '20px',
-                  borderRadius: '10px',
-                  color: 'white',
-                  marginBottom: '25px'
-                }}>
-                  <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.9, marginBottom: '8px' }}>Estimativa de Frete</p>
-                  <h3 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '700' }}>R$ {precoCalculado.preco.toLocaleString('pt-BR')}</h3>
-                  <p style={{ margin: '10px 0 0 0', fontSize: '0.85rem', opacity: 0.8 }}>
-                    📍 {precoCalculado.distancia.toLocaleString('pt-BR')} km · ⏱️ {precoCalculado.tempo}
-                  </p>
-                </div>
+                <>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #556cd6 100%)',
+                    padding: '20px',
+                    borderRadius: '10px',
+                    color: 'white',
+                    marginBottom: '25px'
+                  }}>
+                    <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.9, marginBottom: '8px' }}>Estimativa de Frete</p>
+                    <h3 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '700' }}>R$ {precoCalculado.preco.toLocaleString('pt-BR')}</h3>
+                    <p style={{ margin: '10px 0 0 0', fontSize: '0.85rem', opacity: 0.8 }}>
+                      📍 {precoCalculado.distancia.toLocaleString('pt-BR')} km · ⏱️ {precoCalculado.tempo}
+                    </p>
+                  </div>
+
+                  {/* Mapa da Rota */}
+                  <MapaRota
+                    origem={`${formData.cidade_origem}, ${formData.estado_origem}`}
+                    destino={`${formData.cidade_destino}, ${formData.estado_destino}`}
+                    distancia={precoCalculado.distancia}
+                    tempo={precoCalculado.tempo}
+                  />
+                </>
               )}
             </div>
           )}

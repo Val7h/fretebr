@@ -7,6 +7,7 @@ import {
   ESTIMAR_TEMPO,
   FRETES_EXEMPLO,
 } from '../data/freteData';
+import { MapaRota } from '../components/MapaRota';
 
 export const FindFretePage = () => {
   const [filtros, setFiltros] = useState({
@@ -259,10 +260,12 @@ export const FindFretePage = () => {
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.2fr', gap: '30px', alignItems: 'start' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '25px', alignItems: 'start' }}>
+                  {/* Lado Esquerdo: Detalhes */}
+                  <div>
                     {/* Rota */}
-                    <div>
-                      <div style={{ marginBottom: '20px' }}>
+                    <div style={{ marginBottom: '20px' }}>
+                      <div style={{ marginBottom: '15px' }}>
                         <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>De</p>
                         <h3 style={{ margin: '8px 0 0 0', color: '#333', fontSize: '1.2rem', fontWeight: '600' }}>📍 {frete.origem}</h3>
                       </div>
@@ -272,65 +275,76 @@ export const FindFretePage = () => {
                       </div>
                     </div>
 
-                    {/* Detalhes */}
-                    <div>
-                      <div style={{ marginBottom: '15px' }}>
+                    {/* Grid de Detalhes */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                      {/* Carga */}
+                      <div>
                         <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Carga</p>
                         <p style={{ margin: '5px 0 0 0', fontSize: '1.1rem', fontWeight: '600', color: '#333' }}>📦 {frete.peso_kg.toLocaleString('pt-BR')} kg</p>
                       </div>
-                      <div>
-                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Descrição</p>
-                        <p style={{ margin: '5px 0 0 0', fontSize: '0.95rem', color: '#666' }}>{frete.descricao}</p>
-                      </div>
-                    </div>
 
-                    {/* Distância e Tempo */}
-                    <div>
-                      <div style={{ marginBottom: '15px' }}>
+                      {/* Distância */}
+                      <div>
                         <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Distância</p>
-                        <p style={{ margin: '5px 0 0 0', fontSize: '1.3rem', fontWeight: '700', color: '#667eea' }}>{frete.distancia.toLocaleString('pt-BR')} km</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '1.1rem', fontWeight: '700', color: '#667eea' }}>{frete.distancia.toLocaleString('pt-BR')} km</p>
                       </div>
+
+                      {/* Tempo */}
                       <div>
                         <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Tempo Est.</p>
                         <p style={{ margin: '5px 0 0 0', fontSize: '1rem', fontWeight: '600', color: '#333' }}>⏱️ {frete.tempo_estimado}</p>
                       </div>
                     </div>
 
-                    {/* Valor e Urgência */}
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ marginBottom: '20px' }}>
-                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Valor da Carga</p>
-                        <h2 style={{ margin: '8px 0 0 0', color: '#667eea', fontSize: '2rem', fontWeight: '700' }}>
-                          R$ {frete.valor_r.toLocaleString('pt-BR')}
-                        </h2>
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        gap: '10px',
-                        justifyContent: 'flex-end',
-                        marginBottom: '12px'
-                      }}>
-                        <button style={{
-                          padding: '12px 24px',
-                          background: '#667eea',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          fontSize: '0.95rem',
-                          transition: 'all 0.2s',
-                          flex: 1
-                        }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = '#556cd6'; e.currentTarget.style.transform = 'scale(1.02)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = '#667eea'; e.currentTarget.style.transform = 'scale(1)'; }}
-                        >
-                          ✓ Aceitar
-                        </button>
-                      </div>
+                    {/* Descrição */}
+                    <div style={{ marginTop: '15px' }}>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600', marginBottom: '5px' }}>Descrição</p>
+                      <p style={{ margin: 0, fontSize: '0.95rem', color: '#666' }}>{frete.descricao}</p>
+                    </div>
+                  </div>
+
+                  {/* Lado Direito: Mapa Compacto + Valor */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <MapaRota
+                      origem={frete.origem}
+                      destino={frete.destino}
+                      distancia={frete.distancia}
+                      compact={true}
+                    />
+
+                    {/* Valor e Ações */}
+                    <div style={{
+                      background: 'white',
+                      padding: '15px',
+                      borderRadius: '8px',
+                      border: '1px solid #eee',
+                      textAlign: 'center'
+                    }}>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#999', fontWeight: '600', marginBottom: '8px' }}>VALOR DA CARGA</p>
+                      <h2 style={{ margin: '0 0 12px 0', color: '#667eea', fontSize: '1.7rem', fontWeight: '700' }}>
+                        R$ {frete.valor_r.toLocaleString('pt-BR')}
+                      </h2>
+                      <button style={{
+                        padding: '10px 16px',
+                        background: '#667eea',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '0.85rem',
+                        transition: 'all 0.2s',
+                        width: '100%',
+                        marginBottom: '8px'
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.background = '#556cd6'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = '#667eea'; e.currentTarget.style.transform = 'scale(1)'; }}
+                      >
+                        ✓ Aceitar
+                      </button>
                       <p style={{
                         margin: 0,
-                        fontSize: '0.85rem',
+                        fontSize: '0.75rem',
                         color: frete.urgencia === 'muito alta' ? '#ff4444' : frete.urgencia === 'alta' ? '#ff8800' : '#2ecc71',
                         fontWeight: '700',
                         textTransform: 'uppercase',
@@ -340,6 +354,7 @@ export const FindFretePage = () => {
                       </p>
                     </div>
                   </div>
+                </div>
                 </div>
               ))}
             </div>
