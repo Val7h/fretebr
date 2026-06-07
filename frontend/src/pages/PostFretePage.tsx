@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { apiService } from '../services/api';
 import {
   ESTADOS_BRASIL,
   CIDADES_POR_ESTADO,
@@ -105,9 +106,22 @@ export const PostFretePage = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validarStep(step)) {
+    if (!validarStep(step)) return;
+
+    try {
+      const origem = `${formData.cidade_origem}, ${formData.estado_origem}`;
+      const destino = `${formData.cidade_destino}, ${formData.estado_destino}`;
+
+      await apiService.createFrete({
+        origem,
+        destino,
+        peso_kg: parseInt(formData.peso_kg),
+        valor_r: precoCalculado?.preco || 0,
+        descricao: formData.descricao,
+      });
+
       setModal({
         aberto: true,
         titulo: '✅ Frete Postado com Sucesso!',
@@ -132,6 +146,13 @@ export const PostFretePage = () => {
           email: ''
         });
       }, 3000);
+    } catch (error: any) {
+      setModal({
+        aberto: true,
+        titulo: '❌ Erro ao Postar Frete',
+        mensagem: error?.response?.data?.detail || 'Ocorreu um erro ao postar o frete. Tente novamente.',
+        tipo: 'erro'
+      });
     }
   };
 

@@ -4,7 +4,7 @@ services:
     container_name: fretebr_postgres
     environment:
       POSTGRES_USER: ${DB_USER:-fretebr}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-fretebr123}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD obrigatorio - definir em .env}
       POSTGRES_DB: ${DB_NAME:-fretebr_db}
     ports:
       - "5432:5432"
@@ -22,18 +22,25 @@ services:
       dockerfile: Dockerfile
     container_name: fretebr_backend
     environment:
-      DATABASE_URL: postgresql://${DB_USER:-fretebr}:${DB_PASSWORD:-fretebr123}@postgres:5432/${DB_NAME:-fretebr_db}
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      DATABASE_URL: postgresql://${DB_USER:-fretebr}:${DB_PASSWORD:?DB_PASSWORD obrigatorio}@postgres:5432/${DB_NAME:-fretebr_db}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY obrigatorio - gere com: python -c "import secrets; print(secrets.token_urlsafe(64))"}
       ALGORITHM: HS256
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
-      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      AUTH_COOKIE_MODE: ${AUTH_COOKIE_MODE:-true}
+      # Postura segura: cookies só por HTTPS por default. Override pra false em dev local.
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      ENVIRONMENT: ${ENVIRONMENT:-staging}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
       TWILIO_WHATSAPP_SANDBOX_ENABLED: ${TWILIO_WHATSAPP_SANDBOX_ENABLED:-true}
       NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-true}
       WHATSAPP_NOTIFICATIONS_ENABLED: ${WHATSAPP_NOTIFICATIONS_ENABLED:-true}
-      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN}
-      MERCADO_PAGO_WEBHOOK_SECRET: ${MERCADO_PAGO_WEBHOOK_SECRET}
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
+      MERCADO_PAGO_WEBHOOK_SECRET: ${MERCADO_PAGO_WEBHOOK_SECRET:-}
       MERCADO_PAGO_ENVIRONMENT: ${MERCADO_PAGO_ENVIRONMENT:-sandbox}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      ENVIRONMENT: ${ENVIRONMENT:-staging}
     ports:
       - "8000:8000"
     depends_on:
@@ -41,7 +48,9 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
   frontend:
     build:

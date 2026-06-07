@@ -29,7 +29,7 @@ class User(Base):
 
     # Relationships
     fretes = relationship("Frete", back_populates="motorista")
-    matches_as_shipper = relationship("Match", back_populates="shipper", foreign_keys="Match.shipper_id")
+    matches_as_motorista = relationship("Match", back_populates="motorista", foreign_keys="Match.motorista_id")
     messages_sent = relationship("Message", back_populates="sender", foreign_keys="Message.sender_id")
 
     def __repr__(self):

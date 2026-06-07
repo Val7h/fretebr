@@ -69,17 +69,22 @@ def create_payment(
         )
 
     # Verify user is part of the match
-    if db_match.shipper_id != current_user.id:
+    # NOTE: O "shipper" do match e o criador do frete (frete.motorista_id semanticamente)
+    shipper_user_id = db_match.frete.motorista_id if db_match.frete else None
+    if shipper_user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not part of this match"
         )
 
-    # Check match status
-    if db_match.status != MatchStatus.finalizado:
+    # Check match status: aceito, em_entrega ou finalizado podem gerar pagamento
+    # (workflow real: shipper paga apos aceitar; libera quando entrega finaliza)
+    accepted_states = ("aceito", "em_entrega", "finalizado",
+                       MatchStatus.aceito, MatchStatus.em_entrega, MatchStatus.finalizado)
+    if db_match.status not in accepted_states:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Match must be in 'finalizado' status. Current status: {db_match.status}"
+            detail=f"Match must be accepted/in delivery/finalized. Current status: {db_match.status}"
         )
 
     # Check if payment already exists and is not expired
@@ -103,8 +108,12 @@ def create_payment(
                 )
 
     # Get motorista info for payment
+    # CORRETO: motorista do match = quem fez a proposta aceita (db_match.motorista_id)
+    # frete.motorista_id semanticamente eh o SHIPPER (criador do frete)
     frete = db_match.frete
-    motorista = db.query(User).filter(User.id == frete.motorista_id).first()
+    motorista = db.query(User).filter(User.id == db_match.motorista_id).first()
+    if not motorista:
+        raise HTTPException(status_code=500, detail="Motorista do match nao encontrado")
 
     # Send payment request to Mercado Pago
     try:
@@ -234,39 +243,156 @@ async def webhook_mercado_pago(
     Returns:
         Success response for Mercado Pago
     """
-    try:
-        # Get payload
-        payload = await request.json()
-        signature = request.headers.get("X-Signature")
+    # SEGURANCA: webhook fail-closed
+    import os as _os
+    import hmac as _hmac
+    import hashlib as _hashlib
 
-        # Handle webhook
+    # Aceita ambos nomes (compat com infra existente)
+    webhook_secret = (
+        _os.getenv("MERCADO_PAGO_WEBHOOK_SECRET")
+        or _os.getenv("MP_WEBHOOK_SECRET")
+    )
+    if not webhook_secret:
+        logger.error("[SECURITY] MERCADO_PAGO_WEBHOOK_SECRET nao configurada - webhook indisponivel")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Webhook nao configurado"
+        )
+
+    signature = request.headers.get("X-Signature") or request.headers.get("x-signature")
+    if not signature:
+        logger.warning("[SECURITY] Webhook MP sem X-Signature - rejeitado")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing signature"
+        )
+
+    # Validar HMAC
+    raw_body = await request.body()
+    try:
+        expected_sig = _hmac.new(
+            webhook_secret.encode("utf-8"),
+            raw_body,
+            _hashlib.sha256
+        ).hexdigest()
+        # signature pode vir como "ts=...,v1=hash" (formato MP). Extrair v1=
+        sig_to_check = signature
+        if "v1=" in signature:
+            sig_to_check = signature.split("v1=")[-1].split(",")[0].strip()
+        if not _hmac.compare_digest(expected_sig, sig_to_check):
+            logger.warning("[SECURITY] Webhook MP HMAC invalido - rejeitado")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid signature"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[SECURITY] Falha ao validar HMAC: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Signature validation failed"
+        )
+
+    # Apenas APOS validar assinatura, processar payload
+    try:
+        import json as _json
+        payload = _json.loads(raw_body.decode("utf-8"))
+    except Exception as e:
+        logger.error(f"Webhook payload invalido: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid payload"
+        )
+
+    try:
         webhook_result = handle_webhook(payload, signature)
 
         if webhook_result.get("type") == "payment":
             payment_id = webhook_result.get("payment_id")
 
-            # Get transaction by payment ID
-            db_transaction = transaction_crud.get_transaction_by_mp_id(db, str(payment_id))
+            # IDEMPOTENCIA ATOMICA: usar SELECT FOR UPDATE para serializar
+            # processamento concorrente do mesmo payment_id (webhook + polling).
+            from sqlalchemy.exc import IntegrityError
+            try:
+                # Lock pessimista na linha da transacao
+                db_transaction = (
+                    db.query(Transaction)
+                    .filter(Transaction.mp_payment_id == str(payment_id))
+                    .with_for_update(nowait=False)
+                    .first()
+                )
+            except Exception:
+                # SQLite nao suporta FOR UPDATE - usar lookup normal
+                db_transaction = transaction_crud.get_transaction_by_mp_id(db, str(payment_id))
+
             if db_transaction:
-                try:
-                    # Verify payment status
-                    payment_info = verify_payment(str(payment_id))
-
-                    # Update transaction status
-                    new_status = payment_info.get("status", TransactionStatus.pendente)
-                    if new_status != db_transaction.status:
-                        transaction_crud.update_transaction_status(db, db_transaction.id, new_status)
-                        logger.info(f"Transaction {db_transaction.id} status updated to {new_status}")
-
-                except MercadoPagoError as e:
-                    logger.error(f"Error verifying payment {payment_id}: {str(e)}")
+                # Estados terminais sao IDEMPOTENTES - nao reprocessa
+                if db_transaction.status in ("pago", "falhou", "cancelado", "expirado"):
+                    logger.info(
+                        f"[IDEMPOTENT] Webhook duplicado para payment_id={payment_id} "
+                        f"(estado terminal: {db_transaction.status}) - ignorado"
+                    )
+                else:
+                    try:
+                        payment_info = verify_payment(str(payment_id))
+                        new_status = payment_info.get("status", TransactionStatus.pendente)
+                        if new_status != db_transaction.status:
+                            transaction_crud.update_transaction_status(db, db_transaction.id, new_status)
+                            logger.info(
+                                f"Transaction {db_transaction.id} status updated to {new_status} "
+                                f"via webhook (payment_id={payment_id})"
+                            )
+                    except MercadoPagoError as e:
+                        logger.error(f"Error verifying payment {payment_id}: {str(e)}")
 
         return {"status": "ok"}
 
     except Exception as e:
-        logger.error(f"Webhook error: {str(e)}")
-        # Always return 200 to Mercado Pago to prevent retries
-        return {"status": "error", "message": str(e)}
+        logger.error(f"Webhook processing error: {str(e)}")
+        # Apos validar assinatura, falha de processamento e 500 (MP retentara)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Processing error"
+        )
+
+
+@router.post("/{transaction_id}/simulate-paid")
+def simulate_payment_paid(
+    transaction_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    DEV/STAGING ONLY: Simula pagamento Pix como pago.
+    Disponivel apenas quando MERCADO_PAGO_ACCESS_TOKEN nao esta configurado
+    (modo MOCK) ou quando ALLOW_PAYMENT_SIMULATION=true em env.
+    """
+    import os as _os
+    mp_token = _os.getenv("MERCADO_PAGO_ACCESS_TOKEN", "").strip().lower()
+    is_placeholder = (not mp_token) or "xxx" in mp_token or "your" in mp_token or len(mp_token) < 20
+    allow = _os.getenv("ALLOW_PAYMENT_SIMULATION", "").lower() == "true"
+    if not is_placeholder and not allow:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Simulation disabled in production"
+        )
+
+    db_transaction = transaction_crud.get_transaction(db, transaction_id)
+    if not db_transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    if current_user.id not in [db_transaction.shipper_id, db_transaction.motorista_id]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Idempotente: ja pago, retorna
+    if db_transaction.status == TransactionStatus.pago:
+        return {"status": "already_paid", "transaction_id": db_transaction.id}
+
+    transaction_crud.update_transaction_status(db, db_transaction.id, TransactionStatus.pago)
+    logger.info(f"[SIMULATE] Transaction {db_transaction.id} marked as paid by user {current_user.id}")
+    return {"status": "ok", "transaction_id": db_transaction.id, "new_status": "pago"}
 
 
 @router.get("/{match_id}/receipt", response_model=ReceiptResponse)
@@ -298,9 +424,10 @@ def get_receipt(
         )
 
     # Check authorization
+    # NOTE: shipper = criador do frete (frete.motorista_id); motorista do match = quem aceitou
     frete = db_match.frete
-    is_motorista = frete.motorista_id == current_user.id
-    is_shipper = db_match.shipper_id == current_user.id
+    is_shipper = frete.motorista_id == current_user.id
+    is_motorista = db_match.motorista_id == current_user.id
 
     if not is_motorista and not is_shipper:
         raise HTTPException(

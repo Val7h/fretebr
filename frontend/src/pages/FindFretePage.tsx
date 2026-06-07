@@ -1,11 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { apiService } from '../services/api';
+import type { Frete } from '../services/api';
 import {
   ESTADOS_BRASIL,
   CIDADES_POR_ESTADO,
   CALCULAR_DISTANCIA,
   CALCULAR_PRECO_FRETE,
   ESTIMAR_TEMPO,
-  FRETES_EXEMPLO,
   COORDENADAS_CIDADES,
 } from '../data/freteData';
 import { MapaRotaLeaflet } from '../components/MapaRotaLeaflet';
@@ -21,9 +22,32 @@ export const FindFretePage = () => {
     urgencia: 'todas'
   });
 
+  const [fretesApi, setFretesApi] = useState<Frete[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Carregar fretes da API
+  useEffect(() => {
+    loadFretes();
+  }, []);
+
+  const loadFretes = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await apiService.getAvailableFretes();
+      setFretesApi(data);
+    } catch (err: any) {
+      setError('Erro ao carregar fretes');
+      setFretesApi([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fretes com cálculo automático de distância e preço
   const fretes = useMemo(() => {
-    return FRETES_EXEMPLO.map(frete => {
+    return fretesApi.map(frete => {
       const distancia = CALCULAR_DISTANCIA(frete.origem, frete.destino);
       const preco = CALCULAR_PRECO_FRETE(distancia, frete.peso_kg);
       const tempo = ESTIMAR_TEMPO(distancia);
@@ -31,11 +55,10 @@ export const FindFretePage = () => {
       return {
         ...frete,
         distancia,
-        valor_r: preco,
         tempo_estimado: tempo
       };
     });
-  }, []);
+  }, [fretesApi]);
 
   // Filtrar fretes
   const fretesFiltr = useMemo(() => {
@@ -223,11 +246,7 @@ export const FindFretePage = () => {
 
         {/* Lista de Fretes */}
         <div>
-          <h3 style={{ color: '#333', marginBottom: '20px', fontSize: '1.2rem', fontWeight: '600' }}>
-            📦 {fretesFiltr.length} frete{fretesFiltr.length !== 1 ? 's' : ''} disponível{fretesFiltr.length !== 1 ? 's' : ''}
-          </h3>
-
-          {fretesFiltr.length === 0 ? (
+          {isLoading ? (
             <div style={{
               background: 'white',
               padding: '40px',
@@ -235,9 +254,51 @@ export const FindFretePage = () => {
               textAlign: 'center',
               boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
             }}>
-              <p style={{ color: '#999', fontSize: '1.1rem' }}>Nenhum frete encontrado com estes filtros 😔</p>
+              <p style={{ color: '#666', fontSize: '1.1rem' }}>Carregando fretes...</p>
+            </div>
+          ) : error ? (
+            <div style={{
+              background: 'white',
+              padding: '40px',
+              borderRadius: '10px',
+              textAlign: 'center',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+              borderLeft: '4px solid #ff4444'
+            }}>
+              <p style={{ color: '#ff4444', fontSize: '1.1rem' }}>{error}</p>
+              <button
+                onClick={loadFretes}
+                style={{
+                  marginTop: '20px',
+                  padding: '10px 20px',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Tentar Novamente
+              </button>
             </div>
           ) : (
+            <>
+              <h3 style={{ color: '#333', marginBottom: '20px', fontSize: '1.2rem', fontWeight: '600' }}>
+                📦 {fretesFiltr.length} frete{fretesFiltr.length !== 1 ? 's' : ''} disponível{fretesFiltr.length !== 1 ? 's' : ''}
+              </h3>
+
+              {fretesFiltr.length === 0 ? (
+                <div style={{
+                  background: 'white',
+                  padding: '40px',
+                  borderRadius: '10px',
+                  textAlign: 'center',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
+                }}>
+                  <p style={{ color: '#999', fontSize: '1.1rem' }}>Nenhum frete encontrado com estes filtros 😔</p>
+                </div>
+              ) : (
             <div style={{ display: 'grid', gap: '20px' }}>
               {fretesFiltr.map(frete => (
                 <div
@@ -361,6 +422,8 @@ export const FindFretePage = () => {
                 </div>
               ))}
             </div>
+              )}
+            </>
           )}
         </div>
       </div>

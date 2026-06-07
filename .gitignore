@@ -1,23 +1,40 @@
+# Env
 .env
 .env.local
+.env.*.local
+
+# Python
 .venv
 venv/
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.DS_Store
 *.egg-info/
-dist/
-build/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Node / Next
+node_modules/
+.next/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Builds
+dist/
+build/
+
+# Backups
+*.bak
+
+# OS / Editor
+.DS_Store
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-.env.*.local
-node_modules/
-.next/

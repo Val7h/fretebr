@@ -24,13 +24,13 @@ def post_frete(
     db: Session = Depends(get_db)
 ):
     """
-    Create a new frete (only motoristas can post)
+    Create a new frete (only shippers can post)
     """
-    # Check if user is a motorista
-    if current_user.tipo != UserType.motorista.value:
+    # Check if user is a shipper
+    if current_user.tipo != "shipper":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only motoristas can post fretes"
+            detail=f"Access denied: Only shippers can post. You are: {current_user.tipo}"
         )
 
     # Create frete

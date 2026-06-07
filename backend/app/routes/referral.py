@@ -6,7 +6,7 @@ from uuid import UUID
 from datetime import datetime
 
 from app.database import get_db
-from app.auth import get_current_user
+from app.api.auth import get_current_user
 from app.models import User, Referral, ReferralWithdrawal, Frete, Match
 from app.schemas.referral import (
     ReferralCreateRequest,

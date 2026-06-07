@@ -8,7 +8,7 @@ import random
 import string
 
 from app.database import get_db
-from app.auth import get_current_user
+from app.api.auth import get_current_user
 from app.models import User, FuelStation, FuelStationAttendant, FuelReferralCode, FuelStationReferral, FuelDiscount, FuelAttendantWithdrawal
 from app.schemas.fuel_station import (
     FuelStationRegisterRequest,

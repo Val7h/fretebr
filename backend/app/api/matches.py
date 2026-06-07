@@ -1,337 +1,302 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from decimal import Decimal
+from sqlalchemy import and_
+from datetime import datetime
+
 from app.database import get_db
-from app.schemas.match import MatchCreate, MatchResponse, MatchUpdate, MatchWithMessages
-from app.schemas.message import MessageCreate, MessageResponse
 from app.schemas.user import UserResponse
 from app.api.auth import get_current_user
-from app.crud import match as match_crud
-from app.crud import message as message_crud
-from app.models import Match, MatchStatus, Frete, User
-from app.services.notifications import send_whatsapp_notification
-from app.routes.referral import calculate_and_apply_referral_commission
-from app.routes.fuel_station import apply_fuel_station_commission
-import logging
+from app.models import Match, Frete, User
 
 router = APIRouter(prefix="/api/matches", tags=["matches"])
-logger = logging.getLogger(__name__)
 
-@router.post("", response_model=MatchResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=201)
 def create_match(
-    match_data: MatchCreate,
+    frete_id: int,
+    valor_proposta: float = Query(..., gt=0),
+    mensagem: str = Query("", max_length=500),
     current_user: UserResponse = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Shipper accepts a frete and creates a match.
-
-    Only shippers can create matches. Requires auth.
-
-    Args:
-        match_data: { frete_id }
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        MatchResponse with match details
+    Create a new match/proposal (only motoristas can propose)
     """
-    # Only shippers can accept fretes
-    if current_user.tipo != "shipper":
+    # Validate user is motorista
+    if current_user.tipo != "motorista":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only shippers can accept fretes"
+            detail="Only motoristas can create proposals"
         )
 
-    # Check if frete exists
-    frete = db.query(Frete).filter(Frete.id == match_data.frete_id).first()
+    # Validate frete exists
+    frete = db.query(Frete).filter(Frete.id == frete_id).first()
     if not frete:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Frete not found"
         )
 
-    # Check if frete is available
-    if frete.status != "disponível":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Frete is not available for acceptance"
+    # Check if motorista already proposed to this frete
+    existing_match = db.query(Match).filter(
+        and_(
+            Match.frete_id == frete_id,
+            Match.motorista_id == current_user.id,
+            Match.status != "rejeitado"
         )
+    ).first()
 
-    # Shipper cannot accept their own frete (if they are also a motorista)
-    if frete.motorista_id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot accept your own frete"
-        )
-
-    # Check if match already exists for this shipper and frete
-    existing_match = (
-        db.query(Match)
-        .filter(
-            Match.frete_id == match_data.frete_id,
-            Match.shipper_id == current_user.id
-        )
-        .first()
-    )
     if existing_match:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You have already accepted this frete"
+            detail="You already have an active proposal for this frete"
         )
 
     # Create match
-    db_match = match_crud.create_match(
-        db,
-        shipper_id=current_user.id,
-        frete_id=match_data.frete_id,
-        valor_final=frete.valor_r
+    new_match = Match(
+        frete_id=frete_id,
+        motorista_id=current_user.id,
+        valor_proposta=valor_proposta,
+        mensagem=mensagem,
+        status="pendente"
     )
 
-    # Send WhatsApp notification to motorista
-    motorista = db.query(User).filter(User.id == frete.motorista_id).first()
-    if motorista and motorista.telefone:
-        try:
-            message = f"🚚 Você recebeu uma solicitação em FreteBR! {frete.origem} → {frete.destino}. Peso: {frete.peso_kg}kg. Valor: R$ {frete.valor_r:.2f}. Acesse o app para detalhes."
-            send_whatsapp_notification(motorista.telefone, message)
-        except Exception as e:
-            logger.error(f"Failed to send WhatsApp notification: {str(e)}")
-            # Don't fail the request if WhatsApp fails
+    db.add(new_match)
+    db.commit()
+    db.refresh(new_match)
 
-    # Refresh to get relationships
-    db.refresh(db_match)
-    return db_match
+    return {
+        "id": new_match.id,
+        "frete_id": new_match.frete_id,
+        "motorista_id": new_match.motorista_id,
+        "valor_proposta": new_match.valor_proposta,
+        "status": new_match.status,
+        "mensagem": new_match.mensagem,
+        "created_at": new_match.created_at.isoformat(),
+        "updated_at": new_match.updated_at.isoformat()
+    }
 
-@router.get("", response_model=list[MatchResponse])
-def list_matches(
+@router.get("/frete/{frete_id}")
+def get_frete_matches(
+    frete_id: int,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
     current_user: UserResponse = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Get all matches for the current user.
-
-    If motorista: returns matches on their fretes
-    If shipper: returns matches they accepted
-
-    Requires auth.
-
-    Returns:
-        List of matches for the current user
+    Get all proposals for a specific frete (only shipper who posted can see)
     """
-    matches = match_crud.list_matches(db, current_user.id, current_user.tipo)
-    return matches
+    # Get frete
+    frete = db.query(Frete).filter(Frete.id == frete_id).first()
+    if not frete:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Frete not found"
+        )
 
-@router.get("/{match_id}", response_model=MatchWithMessages)
+    # Validate user is the shipper who posted this frete
+    if frete.motorista_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view proposals for your own fretes"
+        )
+
+    # Get matches
+    matches = db.query(Match).filter(
+        Match.frete_id == frete_id
+    ).offset(skip).limit(limit).all()
+
+    result = []
+    for match in matches:
+        motorista = db.query(User).filter(User.id == match.motorista_id).first()
+        result.append({
+            "id": match.id,
+            "frete_id": match.frete_id,
+            "motorista_id": match.motorista_id,
+            "motorista_nome": motorista.nome if motorista else "Unknown",
+            "motorista_email": motorista.email if motorista else "Unknown",
+            "valor_proposta": match.valor_proposta,
+            "status": match.status,
+            "mensagem": match.mensagem,
+            "created_at": match.created_at.isoformat()
+        })
+
+    return result
+
+@router.get("/my-proposals")
+def get_my_proposals(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all proposals made by current motorista
+    """
+    if current_user.tipo != "motorista":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only motoristas can view proposals"
+        )
+
+    matches = db.query(Match).filter(
+        Match.motorista_id == current_user.id
+    ).offset(skip).limit(limit).all()
+
+    result = []
+    for match in matches:
+        frete = db.query(Frete).filter(Frete.id == match.frete_id).first()
+        result.append({
+            "id": match.id,
+            "frete_id": match.frete_id,
+            "frete_origem": frete.origem if frete else "Unknown",
+            "frete_destino": frete.destino if frete else "Unknown",
+            "valor_proposta": match.valor_proposta,
+            "status": match.status,
+            "created_at": match.created_at.isoformat()
+        })
+
+    return result
+
+@router.put("/{match_id}/accept", status_code=200)
+def accept_match(
+    match_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Accept a proposal (only shipper can accept)
+    """
+    # Get match
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Match not found"
+        )
+
+    # Get frete
+    frete = db.query(Frete).filter(Frete.id == match.frete_id).first()
+
+    # Validate user is the shipper who posted the frete
+    if frete.motorista_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only accept proposals for your own fretes"
+        )
+
+    # Validar transicao via state machine (pendente -> aceito)
+    from app.state_machine import assert_transition
+    assert_transition(match.status, "aceito")
+
+    # Accept match
+    match.status = "aceito"
+    match.updated_at = datetime.utcnow()
+
+    # Reject all other proposals for this frete
+    db.query(Match).filter(
+        and_(
+            Match.frete_id == match.frete_id,
+            Match.id != match_id,
+            Match.status == "pendente"
+        )
+    ).update({"status": "rejeitado", "updated_at": datetime.utcnow()})
+
+    db.commit()
+    db.refresh(match)
+
+    motorista = db.query(User).filter(User.id == match.motorista_id).first()
+
+    return {
+        "id": match.id,
+        "frete_id": match.frete_id,
+        "motorista_nome": motorista.nome if motorista else "Unknown",
+        "valor_proposta": match.valor_proposta,
+        "status": match.status,
+        "message": "Proposal accepted! You can now chat with the motorista."
+    }
+
+@router.put("/{match_id}/reject", status_code=200)
+def reject_match(
+    match_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Reject a proposal (only shipper can reject)
+    """
+    # Get match
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Match not found"
+        )
+
+    # Get frete
+    frete = db.query(Frete).filter(Frete.id == match.frete_id).first()
+
+    # Validate user is the shipper who posted the frete
+    if frete.motorista_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only reject proposals for your own fretes"
+        )
+
+    # Validar transicao via state machine
+    from app.state_machine import assert_transition
+    assert_transition(match.status, "rejeitado")
+
+    # Reject match
+    match.status = "rejeitado"
+    match.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(match)
+
+    return {
+        "id": match.id,
+        "status": match.status,
+        "message": "Proposal rejected"
+    }
+
+@router.get("/{match_id}")
 def get_match(
     match_id: int,
     current_user: UserResponse = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Get a single match with full details and messages.
-
-    Requires auth. User must be part of the match.
-
-    Args:
-        match_id: ID of the match
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        MatchWithMessages with full details
+    Get match details
     """
-    db_match = match_crud.get_match(db, match_id)
-    if not db_match:
+    match = db.query(Match).filter(Match.id == match_id).first()
+    if not match:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Match not found"
         )
 
-    # Check if user is part of the match
-    frete = db_match.frete
-    is_motorista = frete.motorista_id == current_user.id
-    is_shipper = db_match.shipper_id == current_user.id
+    frete = db.query(Frete).filter(Frete.id == match.frete_id).first()
+    motorista = db.query(User).filter(User.id == match.motorista_id).first()
 
-    if not is_motorista and not is_shipper:
+    # Validate user is involved in this match
+    if current_user.id != match.motorista_id and current_user.id != frete.motorista_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this match"
+            detail="You can only view matches you are involved in"
         )
 
-    return db_match
-
-@router.put("/{match_id}/status", response_model=MatchResponse)
-def update_match_status(
-    match_id: int,
-    match_update: MatchUpdate,
-    current_user: UserResponse = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Update match status.
-
-    Only the motorista can update the status.
-    Valid transitions: pendente → aceito → em_entrega → finalizado
-
-    Requires auth.
-
-    Args:
-        match_id: ID of the match
-        match_update: { status }
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        Updated MatchResponse
-    """
-    db_match = match_crud.get_match(db, match_id)
-    if not db_match:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Match not found"
-        )
-
-    # Only motorista can update status
-    frete = db_match.frete
-    if frete.motorista_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the motorista can update match status"
-        )
-
-    # Validate new status
-    if not match_update.status:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Status is required"
-        )
-
-    valid_statuses = [s.value for s in MatchStatus]
-    if match_update.status not in valid_statuses:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
-        )
-
-    # Update status
-    updated_match = match_crud.update_match_status(db, match_id, match_update.status)
-
-    # ⭐ Calcular comissões quando frete é finalizado
-    if match_update.status == "finalizado" and updated_match.frete:
-        try:
-            # 1️⃣ Comissão de referência (motorista-to-motorista, 20%)
-            frete_comissao = Decimal(str(updated_match.frete.valor_r)) * Decimal("0.10")
-            calculate_and_apply_referral_commission(
-                updated_match.id,
-                frete_comissao,
-                db
-            )
-        except Exception as e:
-            logger.warning(f"Failed to calculate referral commission: {str(e)}")
-            # Não falha a requisição se referral falhar
-
-        try:
-            # 2️⃣ Comissão do frentista (R$ 10 se motorista foi indicado via posto)
-            apply_fuel_station_commission(
-                motorista_id=updated_match.frete.motorista_id,
-                valor_frete=updated_match.frete.valor_r,
-                db=db
-            )
-        except Exception as e:
-            logger.warning(f"Failed to apply fuel station commission: {str(e)}")
-            # Não falha a requisição se fuel station commission falhar
-
-    return updated_match
-
-@router.get("/{match_id}/messages", response_model=list[MessageResponse])
-def get_messages(
-    match_id: int,
-    current_user: UserResponse = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Get all messages in a match's chat.
-
-    Requires auth. User must be part of the match.
-
-    Args:
-        match_id: ID of the match
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        List of messages in the match chat
-    """
-    # Check if match exists
-    db_match = match_crud.get_match(db, match_id)
-    if not db_match:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Match not found"
-        )
-
-    # Check if user is part of the match
-    frete = db_match.frete
-    is_motorista = frete.motorista_id == current_user.id
-    is_shipper = db_match.shipper_id == current_user.id
-
-    if not is_motorista and not is_shipper:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this match's messages"
-        )
-
-    messages = message_crud.get_messages_by_match(db, match_id)
-    return messages
-
-@router.post("/{match_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
-def send_message(
-    match_id: int,
-    message_data: MessageCreate,
-    current_user: UserResponse = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Send a message in a match's chat.
-
-    Requires auth. User must be part of the match.
-
-    Args:
-        match_id: ID of the match
-        message_data: { conteudo }
-        current_user: Current authenticated user
-        db: Database session
-
-    Returns:
-        MessageResponse with message details
-    """
-    # Check if match exists
-    db_match = match_crud.get_match(db, match_id)
-    if not db_match:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Match not found"
-        )
-
-    # Check if user is part of the match
-    frete = db_match.frete
-    is_motorista = frete.motorista_id == current_user.id
-    is_shipper = db_match.shipper_id == current_user.id
-
-    if not is_motorista and not is_shipper:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this match"
-        )
-
-    # Create message
-    db_message = message_crud.create_message(
-        db,
-        match_id=match_id,
-        sender_id=current_user.id,
-        conteudo=message_data.conteudo
-    )
-
-    # Refresh to get sender relationship
-    db.refresh(db_message)
-    return db_message
+    return {
+        "id": match.id,
+        "frete_id": match.frete_id,
+        "frete_origem": frete.origem,
+        "frete_destino": frete.destino,
+        "frete_peso": frete.peso_kg,
+        "motorista_id": match.motorista_id,
+        "motorista_nome": motorista.nome,
+        "motorista_email": motorista.email,
+        "valor_proposta": match.valor_proposta,
+        "status": match.status,
+        "mensagem": match.mensagem,
+        "created_at": match.created_at.isoformat()
+    }

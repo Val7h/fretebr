@@ -1,96 +1,72 @@
 # FreteBR - Marketplace de Fretes Brasileiro
 
-FreteBR é um marketplace para conectar motoristas e shippers em um sistema de fretes rápido e seguro.
+Plataforma para conectar motoristas (caminhoneiros) e shippers (embarcadores) com matching, chat, pagamentos e avaliações.
 
-## Stack Tech
+## Stack
 
-- **Backend**: FastAPI (Python)
-- **Frontend**: React/Next.js (Next)
-- **Database**: PostgreSQL
-- **Docker**: Docker Compose
+- **Backend**: FastAPI (Python 3.11+)
+- **Frontend**: Next.js / React
+- **Database**: PostgreSQL (prod) / SQLite (dev)
+- **Auth**: JWT + Google OAuth
 
-## Estrutura do Projeto
+## Como rodar
 
-```
-fretebr/
-├── backend/          # API FastAPI
-│   ├── app/
-│   │   ├── models/   # SQLAlchemy models
-│   │   ├── schemas/  # Pydantic schemas
-│   │   ├── crud/     # Database operations
-│   │   ├── api/      # API endpoints
-│   │   └── main.py   # FastAPI app
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── .env.example
-├── frontend/         # React/Next.js app
-├── docker-compose.yml
-└── README.md
-```
+### Backend (porta 8001)
 
-## Setup Local
-
-### Pré-requisitos
-- Python 3.11+
-- PostgreSQL 14+
-- Docker & Docker Compose
-
-### Instalação (sem Docker)
-
-1. Clone o repositório:
-```bash
-git clone https://github.com/Val7h/fretebr.git
-cd fretebr
-```
-
-2. Configure o backend:
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-cp .env.example .env
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # Linux/Mac
 pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-3. Inicie o servidor:
+API: http://localhost:8001
+Docs (Swagger): http://localhost:8001/docs
+
+### Frontend (porta 3001)
+
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+cd frontend
+npm install
+npm run dev
 ```
 
-API estará disponível em: http://localhost:8000
+App: http://localhost:3001
 
-### Com Docker Compose
+### Docker Compose
 
 ```bash
 docker-compose up
 ```
 
-- Backend: http://localhost:8000
-- Database: localhost:5432
+## Features implementadas
 
-## API Endpoints
+- Autenticação (signup, login, JWT, Google OAuth)
+- Cadastro e perfil de motoristas e shippers
+- Publicação de cargas e matching com motoristas
+- Chat entre partes
+- Sistema de avaliações (rating)
+- Pagamentos integrados
+- Programa de indicações (referral)
+- Integração com postos de combustível
 
-### Auth
-- `POST /api/auth/signup` - Registrar novo usuário
-- `POST /api/auth/login` - Login e obter JWT token
-- `GET /api/auth/me` - Obter dados do usuário logado
+## Estrutura
 
-### Health
-- `GET /health` - Health check
-
-## Documentação da API
-
-Acesse a documentação interativa em: http://localhost:8000/docs
-
-## Branches
-
-- `main` - Produção
-- `dev` - Desenvolvimento
-- `feature/*` - Features em desenvolvimento
-
-## Status
-
-🚀 Em desenvolvimento - Semana 1: Backend Setup
+```
+FreteBR/
+├── backend/            # API FastAPI
+├── frontend/           # App Next.js
+├── docs/               # Documentação
+│   └── status/         # Histórico de relatórios e status
+├── scripts/
+│   └── tests/          # Scripts de teste manual / E2E
+├── tests/              # Testes automatizados
+├── docker-compose.yml
+└── README.md
+```
 
 ## Autor
 

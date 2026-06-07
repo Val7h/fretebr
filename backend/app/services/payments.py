@@ -64,8 +64,35 @@ def send_payment_request(
     Raises:
         MercadoPagoError: If payment request fails
     """
-    if not MERCADO_PAGO_ACCESS_TOKEN:
-        raise MercadoPagoError("MERCADO_PAGO_ACCESS_TOKEN not configured")
+    # MODO MOCK: se nao tem credencial MP valida, gera Pix simulado (dev/staging)
+    # Considera placeholder/x's como ausente
+    def _is_placeholder(tok: str) -> bool:
+        if not tok:
+            return True
+        t = tok.strip().lower()
+        if not t:
+            return True
+        # Detectar placeholders comuns
+        if "xxx" in t or "your" in t or "change" in t or "placeholder" in t:
+            return True
+        if len(t) < 20:
+            return True
+        return False
+
+    if _is_placeholder(MERCADO_PAGO_ACCESS_TOKEN):
+        logger.warning("[MOCK] MERCADO_PAGO_ACCESS_TOKEN ausente/placeholder - gerando Pix MOCK")
+        import uuid as _uuid
+        mock_payment_id = f"MOCK_{_uuid.uuid4().hex[:16]}"
+        mock_qr = generate_pix_qr_fallback(mock_payment_id, amount)
+        expires_at = datetime.utcnow() + timedelta(minutes=expiry_minutes)
+        return {
+            "qr_code": mock_qr,
+            "payment_id": mock_payment_id,
+            "expires_at": expires_at,
+            "expires_in_seconds": int(expiry_minutes * 60),
+            "status": "pending",
+            "mock": True,
+        }
 
     try:
         # Calculate expiry time
@@ -155,8 +182,18 @@ def verify_payment(mp_payment_id: str) -> Dict:
     Raises:
         MercadoPagoError: If verification fails
     """
-    if not MERCADO_PAGO_ACCESS_TOKEN:
-        raise MercadoPagoError("MERCADO_PAGO_ACCESS_TOKEN not configured")
+    # MODO MOCK
+    def _is_placeholder(tok: str) -> bool:
+        if not tok or not tok.strip(): return True
+        t = tok.strip().lower()
+        return "xxx" in t or "your" in t or len(t) < 20
+    if _is_placeholder(MERCADO_PAGO_ACCESS_TOKEN) or str(mp_payment_id).startswith("MOCK_"):
+        logger.info(f"[MOCK] verify_payment({mp_payment_id}) - retornando pending")
+        return {
+            "status": "pendente",
+            "payment_id": mp_payment_id,
+            "mock": True,
+        }
 
     try:
         headers = {

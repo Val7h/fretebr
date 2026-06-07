@@ -9,10 +9,10 @@ from decimal import Decimal
 class FuelStationRegisterRequest(BaseModel):
     """Registrar novo posto de combustível"""
     nome: str = Field(..., min_length=3, max_length=255)
-    cnpj: str = Field(..., regex=r"^\d{14}$")
+    cnpj: str = Field(..., pattern=r"^\d{14}$")
     endereco: str = Field(..., min_length=5)
     cidade: str
-    estado: str = Field(..., regex=r"^[A-Z]{2}$")
+    estado: str = Field(..., pattern=r"^[A-Z]{2}$")
     telefone: str
     email: str
     dono_nome: str

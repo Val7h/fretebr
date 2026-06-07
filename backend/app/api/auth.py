@@ -1,11 +1,50 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Response, Cookie
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+_limiter = Limiter(key_func=get_remote_address)
+
+
+def _cookie_mode() -> bool:
+    """Cookie httpOnly habilitado quando AUTH_COOKIE_MODE=true em env."""
+    return os.getenv("AUTH_COOKIE_MODE", "false").lower() == "true"
+
+
+def _set_auth_cookies(response: Response, access: str, refresh: str | None = None):
+    """Define cookies httpOnly seguros."""
+    secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+    samesite = os.getenv("COOKIE_SAMESITE", "lax")
+    response.set_cookie(
+        key="fretebr_access",
+        value=access,
+        httponly=True,
+        secure=secure,
+        samesite=samesite,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    if refresh:
+        response.set_cookie(
+            key="fretebr_refresh",
+            value=refresh,
+            httponly=True,
+            secure=secure,
+            samesite=samesite,
+            max_age=REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+            path="/api/auth",  # so envia para endpoints de auth
+        )
+
+
+def _clear_auth_cookies(response: Response):
+    response.delete_cookie("fretebr_access", path="/")
+    response.delete_cookie("fretebr_refresh", path="/api/auth")
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.user import UserCreate, UserLogin, UserResponse, Token, AuthResponse
 from app.crud.user import create_user, get_user_by_email, get_user_by_id, verify_password, hash_password, create_user_from_google
-from app.routes.fuel_station import create_fuel_discount_for_motorista
-from app.models import FuelReferralCode
+# from app.routes.fuel_station import create_fuel_discount_for_motorista  # TODO: Fix circular import
+# from app.models import FuelReferralCode
 from app.auth.google import GoogleOAuthConfig, GoogleOAuthHandler
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -17,15 +56,31 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    _env = os.getenv("ENVIRONMENT", "development").lower()
+    if _env in ("production", "staging"):
+        # Fail-hard em prod/staging: nao gerar runtime (multi-worker quebra JWT)
+        raise RuntimeError(
+            "[SECURITY] SECRET_KEY obrigatoria em production/staging. "
+            "Gere com: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+        )
+    # Apenas DEV: gera temporaria com WARN claro
+    import secrets as _secrets
+    SECRET_KEY = _secrets.token_urlsafe(64)
+    logging.warning(
+        "[SECURITY] SECRET_KEY nao definida (DEV) - gerada temporaria. "
+        "Tokens JWT invalidam no restart. Em PROD/STAGING isso seria erro fatal."
+    )
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 security = HTTPBearer()
 
 def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     """
-    Create JWT access token
+    Create JWT access token (curta duracao)
     """
     to_encode = data.copy()
     if expires_delta:
@@ -33,33 +88,61 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)) -> UserResponse:
+
+def create_refresh_token(data: dict) -> str:
     """
-    Get current user from JWT token
+    Create JWT refresh token (longa duracao, rotacionado a cada uso).
     """
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def get_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    """
+    Get current user from JWT token.
+    Aceita tanto Authorization: Bearer <token> quanto cookie httpOnly 'fretebr_access'.
+    """
+    token = None
+    # 1. Tenta header Authorization
+    auth = request.headers.get("Authorization") or request.headers.get("authorization")
+    if auth and auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1].strip()
+    # 2. Fallback: cookie httpOnly
+    if not token:
+        token = request.cookies.get("fretebr_access")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = int(payload.get("sub"))
+        user_id = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid token")
+        user_id = int(user_id)
     except JWTError as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
-    
+
     user = get_user_by_id(db, user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
-    
+
     return user
 
 @router.post("/signup", response_model=AuthResponse)
-def signup(user: UserCreate, db: Session = Depends(get_db)):
+@_limiter.limit("10/minute")
+def signup(request: Request, response: Response, user: UserCreate, db: Session = Depends(get_db)):
     """
-    Register a new user
+    Register a new user.
+    Rate limited: 10/min por IP (anti spam de cadastros).
+    Em AUTH_COOKIE_MODE=true, seta cookies httpOnly.
     """
     try:
         db_user = create_user(db, user)
@@ -67,41 +150,114 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
     # Se tem código de referência do posto, criar desconto
+    # TODO: Reabilitar após corrigir circular import (fuel_station <-> auth)
     if user.fuel_referral_code:
-        code = db.query(FuelReferralCode).filter(
-            FuelReferralCode.codigo == user.fuel_referral_code,
-            FuelReferralCode.status == "ativo"
-        ).first()
+        try:
+            from app.models import FuelReferralCode
+            from app.routes.fuel_station import create_fuel_discount_for_motorista
+            code = db.query(FuelReferralCode).filter(
+                FuelReferralCode.codigo == user.fuel_referral_code,
+                FuelReferralCode.status == "ativo"
+            ).first()
+            if code:
+                create_fuel_discount_for_motorista(db_user.id, code.id, db)
+        except (ImportError, Exception) as e:
+            logger.warning(f"Fuel referral indisponivel: {e}")
 
-        if code:
-            create_fuel_discount_for_motorista(db_user.id, code.id, db)
-
-    # Create access token
+    # Create access token + refresh token
     access_token = create_access_token(data={"sub": str(db_user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(db_user.id)})
+
+    if _cookie_mode():
+        _set_auth_cookies(response, access_token, refresh_token)
 
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
         "user": db_user
     }
 
 @router.post("/login", response_model=AuthResponse)
-def login(user: UserLogin, db: Session = Depends(get_db)):
+@_limiter.limit("5/minute")
+def login(request: Request, response: Response, user: UserLogin, db: Session = Depends(get_db)):
     """
-    Login user and return JWT token
+    Login user and return JWT token.
+    Rate limited: 5 tentativas por minuto por IP (anti brute-force).
+    Em modo AUTH_COOKIE_MODE=true, tambem seta cookies httpOnly.
     """
     db_user = get_user_by_email(db, user.email)
 
     if not db_user or not verify_password(user.password, db_user.password_hash):
+        client_ip = request.client.host if request.client else "unknown"
+        logger.warning(f"[AUTH] Login falhou de {client_ip}")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # Create access token
     access_token = create_access_token(data={"sub": str(db_user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(db_user.id)})
+
+    # Setar cookies httpOnly quando habilitado (defesa contra XSS)
+    if _cookie_mode():
+        _set_auth_cookies(response, access_token, refresh_token)
 
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
         "user": db_user
+    }
+
+
+@router.post("/logout")
+def logout(response: Response):
+    """Limpa cookies httpOnly de autenticacao."""
+    if _cookie_mode():
+        _clear_auth_cookies(response)
+    return {"message": "Logged out"}
+
+
+@router.post("/refresh")
+@_limiter.limit("10/minute")
+def refresh_token(request: Request, response: Response, payload: dict = None, db: Session = Depends(get_db)):
+    """
+    Trocar refresh_token por novo access_token (rotacao).
+    Aceita body {refresh_token} ou cookie httpOnly 'fretebr_refresh'.
+    Rate limited: 10/min por IP.
+    """
+    rt = None
+    if isinstance(payload, dict):
+        rt = payload.get("refresh_token")
+    # Fallback: cookie
+    if not rt:
+        rt = request.cookies.get("fretebr_refresh")
+    if not rt:
+        raise HTTPException(status_code=400, detail="refresh_token required")
+
+    try:
+        decoded = jwt.decode(rt, SECRET_KEY, algorithms=[ALGORITHM])
+        if decoded.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Not a refresh token")
+        user_id = decoded.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid refresh token: {e}")
+
+    user = get_user_by_id(db, int(user_id))
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    # Gera novos tokens (rotacao do refresh)
+    new_access = create_access_token(data={"sub": str(user.id)})
+    new_refresh = create_refresh_token(data={"sub": str(user.id)})
+
+    if _cookie_mode():
+        _set_auth_cookies(response, new_access, new_refresh)
+
+    return {
+        "access_token": new_access,
+        "refresh_token": new_refresh,
+        "token_type": "bearer"
     }
 
 @router.get("/me", response_model=UserResponse)
@@ -136,6 +292,7 @@ def get_google_login_url():
 
 @router.post("/google/callback", response_model=AuthResponse)
 def google_callback(
+    response: Response,
     code: str = Query(..., description="Authorization code from Google"),
     fuel_referral_code: str = Query(None, description="Optional fuel referral code"),
     db: Session = Depends(get_db)
@@ -178,20 +335,31 @@ def google_callback(
         )
 
         # Se tem código de referência do posto, criar desconto
+        # TODO: Reabilitar após corrigir circular import
         if fuel_referral_code:
-            code_record = db.query(FuelReferralCode).filter(
-                FuelReferralCode.codigo == fuel_referral_code,
-                FuelReferralCode.status == "ativo"
-            ).first()
+            try:
+                from app.models import FuelReferralCode
+                from app.routes.fuel_station import create_fuel_discount_for_motorista
+                code_record = db.query(FuelReferralCode).filter(
+                    FuelReferralCode.codigo == fuel_referral_code,
+                    FuelReferralCode.status == "ativo"
+                ).first()
+                if code_record:
+                    create_fuel_discount_for_motorista(db_user.id, code_record.id, db)
+            except (ImportError, Exception) as e:
+                logger.warning(f"Fuel referral indisponivel: {e}")
 
-            if code_record:
-                create_fuel_discount_for_motorista(db_user.id, code_record.id, db)
-
-        # Criar access token
+        # Criar access + refresh tokens
         access_token = create_access_token(data={"sub": str(db_user.id)})
+        refresh_tk = create_refresh_token(data={"sub": str(db_user.id)})
+
+        # Em COOKIE_MODE, setar cookies httpOnly (alinha com /login)
+        if _cookie_mode():
+            _set_auth_cookies(response, access_token, refresh_tk)
 
         return {
             "access_token": access_token,
+            "refresh_token": refresh_tk,
             "token_type": "bearer",
             "user": db_user
         }
@@ -206,6 +374,7 @@ def google_callback(
 
 @router.post("/google/token", response_model=Token)
 def google_token(
+    response: Response,
     code: str,
     fuel_referral_code: str = None,
     db: Session = Depends(get_db)
@@ -247,17 +416,27 @@ def google_token(
         )
 
         # Se tem código de referência do posto, criar desconto
+        # TODO: Reabilitar após corrigir circular import
         if fuel_referral_code:
-            code_record = db.query(FuelReferralCode).filter(
-                FuelReferralCode.codigo == fuel_referral_code,
-                FuelReferralCode.status == "ativo"
-            ).first()
+            try:
+                from app.models import FuelReferralCode
+                from app.routes.fuel_station import create_fuel_discount_for_motorista
+                code_record = db.query(FuelReferralCode).filter(
+                    FuelReferralCode.codigo == fuel_referral_code,
+                    FuelReferralCode.status == "ativo"
+                ).first()
+                if code_record:
+                    create_fuel_discount_for_motorista(db_user.id, code_record.id, db)
+            except (ImportError, Exception) as e:
+                logger.warning(f"Fuel referral indisponivel: {e}")
 
-            if code_record:
-                create_fuel_discount_for_motorista(db_user.id, code_record.id, db)
-
-        # Criar access token
+        # Criar access + refresh tokens
         access_token = create_access_token(data={"sub": str(db_user.id)})
+        refresh_tk = create_refresh_token(data={"sub": str(db_user.id)})
+
+        # Em COOKIE_MODE, setar cookies httpOnly (alinha com /login)
+        if _cookie_mode():
+            _set_auth_cookies(response, access_token, refresh_tk)
 
         return {
             "access_token": access_token,
