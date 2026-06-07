@@ -6,8 +6,9 @@ import {
   CALCULAR_PRECO_FRETE,
   ESTIMAR_TEMPO,
   FRETES_EXEMPLO,
+  COORDENADAS_CIDADES,
 } from '../data/freteData';
-import { MapaRota } from '../components/MapaRota';
+import { MapaRotaLeaflet } from '../components/MapaRotaLeaflet';
 
 export const FindFretePage = () => {
   const [filtros, setFiltros] = useState({
@@ -305,9 +306,11 @@ export const FindFretePage = () => {
 
                   {/* Lado Direito: Mapa Compacto + Valor */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    <MapaRota
+                    <MapaRotaLeaflet
                       origem={frete.origem}
                       destino={frete.destino}
+                      coordOrigem={COORDENADAS_CIDADES[frete.origem]}
+                      coordDestino={COORDENADAS_CIDADES[frete.destino]}
                       distancia={frete.distancia}
                       compact={true}
                     />

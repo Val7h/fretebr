@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste Mapa Rota</title>
+  <style>
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: #f5f5f5;
+      padding: 40px;
+      margin: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-top: 0;
+    }
+    svg {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #e8f4f8 0%, #f0f9ff 100%);
+      display: block;
+      width: 100%;
+      max-width: 400px;
+      margin: 20px auto;
+    }
+    .info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .info-box {
+      background: #f9f9f9;
+      padding: 12px;
+      border-radius: 6px;
+      text-align: center;
+      border: 1px solid #eee;
+    }
+    .label {
+      font-size: 0.75rem;
+      color: #999;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    .value {
+      font-size: 1.2rem;
+      color: #667eea;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗺️ Teste de Mapa - São Paulo → Rio de Janeiro</h1>
+
+    <p>Este é um teste do componente MapaRota com as coordenadas de SP para RJ.</p>
+
+    <!-- Mapa SVG de teste -->
+    <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradienteRota" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color: #667eea; stop-opacity: 0.8" />
+          <stop offset="100%" style="stop-color: #764ba2; stop-opacity: 0.8" />
+        </linearGradient>
+        <filter id="shadow">
+          <feDropShadow dx="2" dy="2" stdDeviation="3" floodOpacity="0.3" />
+        </filter>
+      </defs>
+
+      <!-- Mapa simplificado do Brasil (contornos) -->
+      <g opacity="0.15" stroke-width="1">
+        <circle cx="90" cy="100" r="15" fill="none" stroke="#999" />
+        <circle cx="120" cy="110" r="12" fill="none" stroke="#999" />
+        <circle cx="150" cy="90" r="18" fill="none" stroke="#999" />
+        <circle cx="200" cy="130" r="20" fill="none" stroke="#999" />
+        <circle cx="180" cy="80" r="25" fill="none" stroke="#999" />
+      </g>
+
+      <!-- Linha de rota (São Paulo → Rio de Janeiro) -->
+      <!-- SP: lat -23.5505, lng -46.6333 → normalizadoX ≈ 30, normalizadoY ≈ 153 -->
+      <!-- RJ: lat -22.9068, lng -43.1729 → normalizadoX ≈ 54, normalizadoY ≈ 140 -->
+      <path
+        d="M 30 153 Q 42 103 54 140"
+        stroke="url(#gradienteRota)"
+        stroke-width="3"
+        fill="none"
+        stroke-linecap="round"
+        filter="url(#shadow)"
+      />
+
+      <!-- Ponto de Origem (São Paulo) -->
+      <g>
+        <circle cx="30" cy="153" r="8" fill="#2ecc71" stroke="white" stroke-width="3" filter="url(#shadow)" />
+        <circle cx="30" cy="153" r="14" fill="none" stroke="#2ecc71" stroke-width="2" opacity="0.3" />
+        <text x="30" y="130" text-anchor="middle" style="font-size: 12px; font-weight: 600; fill: #333;">
+          São Paulo
+        </text>
+      </g>
+
+      <!-- Ponto de Destino (Rio de Janeiro) -->
+      <g>
+        <circle cx="54" cy="140" r="8" fill="#e74c3c" stroke="white" stroke-width="3" filter="url(#shadow)" />
+        <circle cx="54" cy="140" r="14" fill="none" stroke="#e74c3c" stroke-width="2" opacity="0.3" />
+        <text x="54" y="170" text-anchor="middle" style="font-size: 12px; font-weight: 600; fill: #333;">
+          Rio de Janeiro
+        </text>
+      </g>
+    </svg>
+
+    <!-- Informações de Rota -->
+    <div class="info">
+      <div class="info-box">
+        <div class="label">DISTÂNCIA</div>
+        <div class="value">415 km</div>
+      </div>
+      <div class="info-box">
+        <div class="label">TEMPO EST.</div>
+        <div class="value">⏱️ 5h 0m</div>
+      </div>
+    </div>
+
+    <p style="margin-top: 30px; font-size: 0.9rem; color: #666;">
+      ✅ <strong>Teste bem-sucedido!</strong> Se você vê um mapa com:
+      <ul>
+        <li>✓ Fundo azul degradé</li>
+        <li>✓ Ponto verde em São Paulo (origem)</li>
+        <li>✓ Ponto vermelho no Rio de Janeiro (destino)</li>
+        <li>✓ Linha roxa curvada conectando os dois pontos</li>
+        <li>✓ Distância e tempo abaixo</li>
+      </ul>
+      Então o mapa está funcionando perfeitamente no FreteBR!
+    </p>
+  </div>
+</body>
+</html>

@@ -5,8 +5,9 @@ import {
   CALCULAR_DISTANCIA,
   CALCULAR_PRECO_FRETE,
   ESTIMAR_TEMPO,
+  COORDENADAS_CIDADES,
 } from '../data/freteData';
-import { MapaRota } from '../components/MapaRota';
+import { MapaRotaLeaflet } from '../components/MapaRotaLeaflet';
 
 interface FormData {
   estado_origem: string;
@@ -365,9 +366,11 @@ export const PostFretePage = () => {
                   </div>
 
                   {/* Mapa da Rota */}
-                  <MapaRota
+                  <MapaRotaLeaflet
                     origem={`${formData.cidade_origem}, ${formData.estado_origem}`}
                     destino={`${formData.cidade_destino}, ${formData.estado_destino}`}
+                    coordOrigem={COORDENADAS_CIDADES[`${formData.cidade_origem}, ${formData.estado_origem}`]}
+                    coordDestino={COORDENADAS_CIDADES[`${formData.cidade_destino}, ${formData.estado_destino}`]}
                     distancia={precoCalculado.distancia}
                     tempo={precoCalculado.tempo}
                   />
