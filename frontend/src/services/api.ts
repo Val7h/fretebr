@@ -1,56 +1,34 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 const api: AxiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Add JWT token to request headers
+// Interceptor para adicionar token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('jwt_token');
+  const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-export interface SignupPayload {
-  email: string;
-  password: string;
-  tipo: 'motorista' | 'shipper';
-  nome: string;
-}
-
-export interface LoginPayload {
-  email: string;
-  password: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  nome: string;
-  tipo: 'motorista' | 'shipper';
-}
-
-export interface AuthResponse {
-  access_token: string;
-  user: User;
-}
-
-export type FreteStatus = 'disponível' | 'aceito' | 'entregue' | 'cancelado';
-
+// Types
 export interface Frete {
-  id: string;
-  motorista_id: string;
+  id: number;
+  motorista_id: number;
   origem: string;
   destino: string;
   peso_kg: number;
   valor_r: number;
-  status: FreteStatus;
   descricao?: string;
+  status: 'disponível' | 'aceito' | 'entregue' | 'cancelado';
   created_at: string;
   updated_at: string;
 }
@@ -61,53 +39,61 @@ export interface CreateFretePayload {
   peso_kg: number;
   valor_r: number;
   descricao?: string;
+  urgencia?: string;
+  data_entrega?: string;
 }
 
+export interface Match {
+  id: number;
+  frete_id: number;
+  transportador_id: number;
+  status: 'pendente' | 'aceito' | 'rejeitado';
+  valor_proposta?: number;
+  created_at: string;
+}
+
+export interface CreateMatchPayload {
+  frete_id: number;
+  valor_proposta?: number;
+  mensagem?: string;
+}
+
+export interface Payment {
+  id: number;
+  match_id: number;
+  valor: number;
+  status: 'pendente' | 'pago' | 'expirado';
+  qr_code_url?: string;
+  created_at: string;
+}
+
+export interface User {
+  id: number;
+  email: string;
+  tipo: 'motorista' | 'shipper';
+  nome: string;
+}
+
+export interface SignupPayload {
+  email: string;
+  senha: string;
+  tipo: 'motorista' | 'shipper';
+  nome: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
+// Extend API with auth methods
 export const apiService = {
-  async signup(payload: SignupPayload): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/signup', payload);
-    return response.data;
-  },
-
-  async login(payload: LoginPayload): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/login', payload);
-    return response.data;
-  },
-
-  async getMe(): Promise<User> {
-    const response = await api.get<User>('/auth/me');
-    return response.data;
-  },
-
-  // Frete endpoints
-  async getFretes(): Promise<Frete[]> {
-    const response = await api.get<Frete[]>('/fretes');
-    return response.data;
-  },
-
-  async getFreteById(id: string): Promise<Frete> {
-    const response = await api.get<Frete>(`/fretes/${id}`);
-    return response.data;
-  },
-
-  async createFrete(payload: CreateFretePayload): Promise<Frete> {
-    const response = await api.post<Frete>('/fretes', payload);
-    return response.data;
-  },
-
-  async updateFrete(id: string, payload: Partial<CreateFretePayload>): Promise<Frete> {
-    const response = await api.put<Frete>(`/fretes/${id}`, payload);
-    return response.data;
-  },
-
-  async deleteFrete(id: string): Promise<void> {
-    await api.delete(`/fretes/${id}`);
-  },
-
-  async getMyFretes(): Promise<Frete[]> {
-    const response = await api.get<Frete[]>('/meus-fretes');
-    return response.data;
-  },
+  ...api,
+  getMe: () => api.get('/auth/me'),
+  login: (email: string, senha: string) =>
+    api.post('/auth/login', { username: email, password: senha }),
+  signup: (user: SignupPayload) => api.post('/auth/register', user),
 };
 
 export default api;
