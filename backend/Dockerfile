@@ -23,5 +23,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Roda Alembic migrations e sobe Uvicorn (1 worker - veja restricao na reauditoria #2)
-CMD sh -c "python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
+# Boot: main.py faz Base.metadata.create_all() automaticamente (cria tabelas).
+# alembic stamp head: marca DB como atualizado sem rodar SQL (baseline no-op).
+# Uvicorn: 1 worker (auditoria recomenda ate migrar metricas pra OTel).
+CMD sh -c "python -m alembic stamp head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
