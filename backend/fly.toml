@@ -1,48 +1,44 @@
-# Fly.io config - FreteBR Backend (Staging Beta)
-# Como usar:
-#   1. fly auth login
-#   2. fly launch --no-deploy --copy-config (ou usar este arquivo)
-#   3. Setar secrets (ver ROTEIRO_DEPLOY.md)
-#   4. fly deploy
+# fly.toml app configuration file generated for fretebr-api on 2026-06-07T17:35:41-03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "fretebr-api"
-primary_region = "gru"  # São Paulo
-kill_signal = "SIGTERM"
-kill_timeout = 30
+app = 'fretebr-api'
+primary_region = 'gru'
+kill_signal = 'SIGTERM'
+kill_timeout = '30s'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [env]
-  ENVIRONMENT = "staging"
-  AUTH_COOKIE_MODE = "true"
-  COOKIE_SECURE = "true"
-  COOKIE_SAMESITE = "lax"
-  LOG_JSON = "true"
-  # MERCADO_PAGO em modo MOCK (sem credencial = Pix sintetico)
-  # Frontend MOCK e exibido apenas em dev
+  AUTH_COOKIE_MODE = 'true'
+  COOKIE_SAMESITE = 'lax'
+  COOKIE_SECURE = 'true'
+  ENVIRONMENT = 'staging'
+  LOG_JSON = 'true'
 
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = "stop"   # Free tier: para quando sem trafego
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
+  processes = ['app']
 
   [http_service.concurrency]
-    type = "requests"
-    soft_limit = 50
+    type = 'requests'
     hard_limit = 100
+    soft_limit = 50
 
   [[http_service.checks]]
-    grace_period = "10s"
-    interval = "30s"
-    method = "GET"
-    timeout = "5s"
-    path = "/health"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
 
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = 'shared'
   cpus = 1
   memory_mb = 512
