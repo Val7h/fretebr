@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from decimal import Decimal
 from app.database import get_db
 from app.schemas.match import MatchCreate, MatchResponse, MatchUpdate, MatchWithMessages
 from app.schemas.message import MessageCreate, MessageResponse
@@ -9,6 +10,8 @@ from app.crud import match as match_crud
 from app.crud import message as message_crud
 from app.models import Match, MatchStatus, Frete, User
 from app.services.notifications import send_whatsapp_notification
+from app.routes.referral import calculate_and_apply_referral_commission
+from app.routes.fuel_station import apply_fuel_station_commission
 import logging
 
 router = APIRouter(prefix="/api/matches", tags=["matches"])
@@ -212,6 +215,32 @@ def update_match_status(
 
     # Update status
     updated_match = match_crud.update_match_status(db, match_id, match_update.status)
+
+    # ⭐ Calcular comissões quando frete é finalizado
+    if match_update.status == "finalizado" and updated_match.frete:
+        try:
+            # 1️⃣ Comissão de referência (motorista-to-motorista, 20%)
+            frete_comissao = Decimal(str(updated_match.frete.valor_r)) * Decimal("0.10")
+            calculate_and_apply_referral_commission(
+                updated_match.id,
+                frete_comissao,
+                db
+            )
+        except Exception as e:
+            logger.warning(f"Failed to calculate referral commission: {str(e)}")
+            # Não falha a requisição se referral falhar
+
+        try:
+            # 2️⃣ Comissão do frentista (R$ 10 se motorista foi indicado via posto)
+            apply_fuel_station_commission(
+                motorista_id=updated_match.frete.motorista_id,
+                valor_frete=updated_match.frete.valor_r,
+                db=db
+            )
+        except Exception as e:
+            logger.warning(f"Failed to apply fuel station commission: {str(e)}")
+            # Não falha a requisição se fuel station commission falhar
+
     return updated_match
 
 @router.get("/{match_id}/messages", response_model=list[MessageResponse])

@@ -14,11 +14,16 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
+    password_hash = Column(String, nullable=True)  # Nullable para OAuth (sem senha)
     tipo = Column(SQLEnum(UserType), nullable=False)
     nome = Column(String, nullable=False)
     telefone = Column(String, nullable=True)
     cpf = Column(String, unique=True, nullable=True, index=True)
+
+    # OAuth Google
+    google_id = Column(String, unique=True, nullable=True, index=True)
+    foto = Column(String, nullable=True)  # URL da foto do Google
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=False, server_default=func.now())
 

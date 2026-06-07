@@ -10,7 +10,8 @@ class UserBase(BaseModel):
     cpf: Optional[str] = None
 
 class UserCreate(UserBase):
-    password: str
+    password: Optional[str] = None  # Opcional (para OAuth)
+    fuel_referral_code: Optional[str] = None  # Código opcional de referência do posto
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -23,6 +24,8 @@ class UserResponse(BaseModel):
     nome: str
     telefone: Optional[str] = None
     cpf: Optional[str] = None
+    google_id: Optional[str] = None
+    foto: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -33,3 +36,8 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user_id: int
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse

@@ -26,10 +26,10 @@ def create_user(db: Session, user: UserCreate) -> User:
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
         raise ValueError("Email already registered")
-    
-    # Hash password
-    hashed_password = hash_password(user.password)
-    
+
+    # Hash password (required for regular signup)
+    hashed_password = hash_password(user.password) if user.password else None
+
     # Create user object
     db_user = User(
         email=user.email,
@@ -39,8 +39,55 @@ def create_user(db: Session, user: UserCreate) -> User:
         telefone=user.telefone,
         cpf=user.cpf
     )
-    
+
     # Save to database
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+def create_user_from_google(db: Session, google_id: str, email: str, nome: str, foto: str = None) -> User:
+    """
+    Create a new user from Google OAuth data.
+    If user already exists with this email, update with google_id and foto.
+
+    Args:
+        db: Database session
+        google_id: Google unique ID
+        email: Email from Google
+        nome: Name from Google
+        foto: Profile picture URL from Google
+
+    Returns:
+        User object (new or updated)
+    """
+    # Check if user already exists by google_id
+    existing_user = db.query(User).filter(User.google_id == google_id).first()
+    if existing_user:
+        return existing_user
+
+    # Check if user exists by email (from previous signup)
+    existing_user = db.query(User).filter(User.email == email).first()
+    if existing_user:
+        # Update with Google info
+        existing_user.google_id = google_id
+        existing_user.foto = foto
+        db.commit()
+        db.refresh(existing_user)
+        return existing_user
+
+    # Create new user
+    # Tipo padrão é "motorista", pode ser alterado depois
+    db_user = User(
+        email=email,
+        password_hash=None,  # No password for OAuth users
+        tipo="motorista",  # Default type
+        nome=nome,
+        google_id=google_id,
+        foto=foto
+    )
+
     db.add(db_user)
     db.commit()
     db.refresh(db_user)

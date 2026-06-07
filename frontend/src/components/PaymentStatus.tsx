@@ -23,7 +23,6 @@ export const PaymentStatus: React.FC<PaymentStatusProps> = ({
   onExpired,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number>(0);
-  const [isPolling, setIsPolling] = useState(false);
 
   // Calculate remaining time
   useEffect(() => {
@@ -34,7 +33,6 @@ export const PaymentStatus: React.FC<PaymentStatusProps> = ({
 
       if (difference <= 0) {
         setTimeLeft(0);
-        setIsPolling(false);
         if (onExpired) {
           onExpired();
         }
@@ -55,8 +53,6 @@ export const PaymentStatus: React.FC<PaymentStatusProps> = ({
       return;
     }
 
-    setIsPolling(true);
-
     const pollPaymentStatus = async () => {
       try {
         // Mock polling - in production, call actual API
@@ -64,7 +60,6 @@ export const PaymentStatus: React.FC<PaymentStatusProps> = ({
           if (onPaid) {
             onPaid();
           }
-          setIsPolling(false);
         }
       } catch (err) {
         console.error('Error polling payment status:', err);

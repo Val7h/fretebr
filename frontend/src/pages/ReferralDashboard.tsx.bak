@@ -1,0 +1,328 @@
+import React, { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
+import axios from 'axios';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { TrendingUp, Gift, Clock, XCircle, DollarSign, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+interface Referral {
+  id: string;
+  referred_motorista_name: string;
+  status: 'pending' | 'completed' | 'rejected' | 'expired';
+  comissao_valor: number;
+  created_at: string;
+  completed_at?: string;
+}
+
+interface Earnings {
+  total_earned: number;
+  referrals_completed: number;
+  referrals_pending: number;
+  referrals_rejected: number;
+  recent_referrals: Referral[];
+}
+
+export const ReferralDashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const [earnings, setEarnings] = useState<Earnings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
+  const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
+
+  useEffect(() => {
+    fetchEarnings();
+  }, []);
+
+  const fetchEarnings = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/referrals/earnings', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      setEarnings(response.data);
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Erro ao carregar ganhos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!earnings || earnings.total_earned < 10) {
+      setWithdrawalError('Saldo mínimo para saque: R$ 10.00');
+      return;
+    }
+
+    setWithdrawing(true);
+    setWithdrawalError(null);
+
+    try {
+      await axios.post(
+        '/api/referrals/withdraw',
+        { amount: earnings.total_earned },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+
+      setWithdrawalSuccess(true);
+      setTimeout(() => {
+        setWithdrawalSuccess(false);
+        fetchEarnings();
+      }, 3000);
+    } catch (err: any) {
+      setWithdrawalError(err.response?.data?.detail || 'Erro ao processar saque');
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'text-green-600 bg-green-50';
+      case 'pending':
+        return 'text-yellow-600 bg-yellow-50';
+      case 'rejected':
+      case 'expired':
+        return 'text-red-600 bg-red-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return '✅ Concluído';
+      case 'pending':
+        return '⏳ Pendente';
+      case 'rejected':
+        return '❌ Rejeitado';
+      case 'expired':
+        return '⏱️ Expirado';
+      default:
+        return status;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Helmet>
+        <title>Meus Ganhos com Indicações | FreteBR</title>
+      </Helmet>
+
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">💰 Meus Ganhos</h1>
+            <p className="text-gray-600 mt-1">Ganhe comissões indicando outros motoristas</p>
+          </div>
+        </div>
+
+        {error && (
+          <Alert className="bg-red-50 border-red-200">
+            <AlertDescription className="text-red-800">{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {withdrawalSuccess && (
+          <Alert className="bg-green-50 border-green-200">
+            <AlertDescription className="text-green-800">
+              ✅ Saque solicitado com sucesso! Você receberá em breve.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {withdrawalError && (
+          <Alert className="bg-red-50 border-red-200">
+            <AlertDescription className="text-red-800">{withdrawalError}</AlertDescription>
+          </Alert>
+        )}
+
+        {earnings && (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Total Earned */}
+              <Card className="p-6 border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Total Ganho</p>
+                    <p className="text-3xl font-bold text-green-600 mt-2">
+                      R$ {earnings.total_earned.toFixed(2)}
+                    </p>
+                  </div>
+                  <DollarSign className="w-12 h-12 text-green-200" />
+                </div>
+              </Card>
+
+              {/* Completed */}
+              <Card className="p-6 border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Concluídas</p>
+                    <p className="text-3xl font-bold text-blue-600 mt-2">
+                      {earnings.referrals_completed}
+                    </p>
+                  </div>
+                  <TrendingUp className="w-12 h-12 text-blue-200" />
+                </div>
+              </Card>
+
+              {/* Pending */}
+              <Card className="p-6 border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Pendentes</p>
+                    <p className="text-3xl font-bold text-yellow-600 mt-2">
+                      {earnings.referrals_pending}
+                    </p>
+                  </div>
+                  <Clock className="w-12 h-12 text-yellow-200" />
+                </div>
+              </Card>
+
+              {/* Rejected */}
+              <Card className="p-6 border-2 border-red-200 bg-gradient-to-br from-red-50 to-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-medium">Rejeitadas</p>
+                    <p className="text-3xl font-bold text-red-600 mt-2">
+                      {earnings.referrals_rejected}
+                    </p>
+                  </div>
+                  <XCircle className="w-12 h-12 text-red-200" />
+                </div>
+              </Card>
+            </div>
+
+            {/* Withdraw Button */}
+            {earnings.total_earned >= 10 && (
+              <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-lg">Saque Disponível</p>
+                    <p className="text-gray-600 text-sm mt-1">
+                      Você tem R$ {earnings.total_earned.toFixed(2)} disponível para sacar
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleWithdraw}
+                    disabled={withdrawing}
+                    className="bg-green-600 hover:bg-green-700"
+                    size="lg"
+                  >
+                    {withdrawing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processando...
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign className="mr-2 h-4 w-4" />
+                        Sacar
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {earnings.total_earned < 10 && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertDescription className="text-blue-800">
+                  💡 Você precisa acumular R$ 10.00 para solicitar saque. Continue indicando motoristas!
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Recent Referrals */}
+            <Card className="p-6">
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Gift className="w-5 h-5 text-green-600" />
+                Minhas Indicações Recentes
+              </h2>
+
+              {earnings.recent_referrals.length === 0 ? (
+                <div className="text-center py-8">
+                  <Gift className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-600">
+                    Você ainda não fez nenhuma indicação
+                  </p>
+                  <Button
+                    onClick={() => navigate('/fretes')}
+                    variant="outline"
+                    className="mt-4"
+                  >
+                    Ver Fretes
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {earnings.recent_referrals.map((ref) => (
+                    <div
+                      key={ref.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{ref.referred_motorista_name}</p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(ref.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+
+                      <div className="text-right space-y-1">
+                        <p className="font-bold text-green-600">
+                          R$ {ref.comissao_valor.toFixed(2)}
+                        </p>
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                            ref.status
+                          )}`}
+                        >
+                          {getStatusLabel(ref.status)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Info Box */}
+            <Card className="p-6 bg-blue-50 border-blue-200">
+              <h3 className="font-bold text-blue-900 mb-3">❓ Como Funciona?</h3>
+              <ul className="space-y-2 text-sm text-blue-900">
+                <li>✨ Você rejeita um frete e indica outro motorista</li>
+                <li>💰 Se ele aceitar, você ganha 20% da comissão FreteBR</li>
+                <li>🎯 Quanto mais indicações bem-sucedidas, mais você ganha</li>
+                <li>📱 Compartilhe seu código com amigos e ganhe bônus</li>
+              </ul>
+            </Card>
+          </>
+        )}
+      </div>
+    </>
+  );
+};
+
+export default ReferralDashboard;

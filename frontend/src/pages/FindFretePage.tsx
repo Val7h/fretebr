@@ -1,175 +1,351 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { apiService, type Frete } from '../services/api';
-import { FreteCard } from '../components/FreteCard';
-import { useAuth } from '../context/AuthContext';
+import { useState, useMemo } from 'react';
+import {
+  ESTADOS_BRASIL,
+  CIDADES_POR_ESTADO,
+  CALCULAR_DISTANCIA,
+  CALCULAR_PRECO_FRETE,
+  ESTIMAR_TEMPO,
+  FRETES_EXEMPLO,
+} from '../data/freteData';
 
-export const FindFretePage: React.FC = () => {
-  const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const [fretes, setFretes] = useState<Frete[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('disponível');
-  const [filterCity, setFilterCity] = useState<string>('');
-
-  useEffect(() => {
-    fetchFretes();
-  }, []);
-
-  const fetchFretes = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const data = await apiService.getFretes();
-      setFretes(data);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Erro ao carregar fretes';
-      setError(errorMessage);
-      console.error('Error fetching fretes:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Filter fretes based on selected criteria
-  const filteredFretes = fretes.filter(frete => {
-    if (filterStatus !== 'all' && frete.status !== filterStatus) {
-      return false;
-    }
-    if (filterCity && !frete.destino.includes(filterCity)) {
-      return false;
-    }
-    return true;
+export const FindFretePage = () => {
+  const [filtros, setFiltros] = useState({
+    estado_origem: '',
+    cidade_origem: '',
+    estado_destino: '',
+    cidade_destino: '',
+    peso_min: 0,
+    peso_max: 30000,
+    urgencia: 'todas'
   });
 
-  // Get unique destination cities for filter
-  const destinyCities = Array.from(
-    new Set(fretes.map(f => f.destino.split('(')[1]?.replace(')', '') || ''))
-  ).filter(Boolean);
+  // Fretes com cálculo automático de distância e preço
+  const fretes = useMemo(() => {
+    return FRETES_EXEMPLO.map(frete => {
+      const distancia = CALCULAR_DISTANCIA(frete.origem, frete.destino);
+      const preco = CALCULAR_PRECO_FRETE(distancia, frete.peso_kg);
+      const tempo = ESTIMAR_TEMPO(distancia);
 
-  // Check if user is shipper
-  if (currentUser?.tipo !== 'shipper') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Acesso Negado</h1>
-          <p className="text-gray-700 mb-6">
-            Apenas shippers podem procurar fretes. Você está logado como {currentUser?.tipo}.
-          </p>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200"
-          >
-            Voltar ao Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
+      return {
+        ...frete,
+        distancia,
+        valor_r: preco,
+        tempo_estimado: tempo
+      };
+    });
+  }, []);
+
+  // Filtrar fretes
+  const fretesFiltr = useMemo(() => {
+    return fretes.filter(f => {
+      // Filtrar por origem
+      if (filtros.estado_origem) {
+        if (!f.origem.endsWith(filtros.estado_origem)) return false;
+      }
+      if (filtros.cidade_origem && !f.origem.startsWith(filtros.cidade_origem)) return false;
+
+      // Filtrar por destino
+      if (filtros.estado_destino) {
+        if (!f.destino.endsWith(filtros.estado_destino)) return false;
+      }
+      if (filtros.cidade_destino && !f.destino.startsWith(filtros.cidade_destino)) return false;
+
+      // Filtrar por peso
+      if (f.peso_kg < filtros.peso_min || f.peso_kg > filtros.peso_max) return false;
+
+      // Filtrar por urgência
+      if (filtros.urgencia !== 'todas' && f.urgencia !== filtros.urgencia) return false;
+
+      return true;
+    });
+  }, [fretes, filtros]);
+
+  const cidadesOrigem = filtros.estado_origem ? CIDADES_POR_ESTADO[filtros.estado_origem as keyof typeof CIDADES_POR_ESTADO] || [] : [];
+  const cidadesDestino = filtros.estado_destino ? CIDADES_POR_ESTADO[filtros.estado_destino as keyof typeof CIDADES_POR_ESTADO] || [] : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">FreteBR</h1>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="text-blue-600 hover:text-blue-700 font-medium"
-          >
-            Dashboard
-          </button>
-        </div>
-      </header>
+    <div style={{ background: '#f5f5f5', minHeight: '100vh', padding: '20px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        <h1 style={{ color: '#333', marginBottom: '30px', fontSize: '2rem', fontWeight: '600' }}>🔍 Procurar Fretes Disponíveis</h1>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Procurar Fretes</h2>
-          <p className="text-gray-600 mb-8">
-            Encontre fretes disponíveis e aceite os que lhe interessam.
-          </p>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-6">
-              {error}
-            </div>
-          )}
-
-          {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 pb-8 border-b border-gray-200">
+        {/* Filtros */}
+        <div style={{
+          background: 'white',
+          padding: '25px',
+          borderRadius: '10px',
+          marginBottom: '30px',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
+        }}>
+          <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#333', fontSize: '1.2rem', fontWeight: '600' }}>Filtros de Busca</h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '20px'
+          }}>
+            {/* Origem */}
             <div>
-              <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                Status
-              </label>
+              <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px', color: '#333', fontSize: '0.95rem' }}>Estado de Origem</label>
               <select
-                id="status-filter"
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={filtros.estado_origem}
+                onChange={(e) => setFiltros({ ...filtros, estado_origem: e.target.value, cidade_origem: '' })}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  boxSizing: 'border-box',
+                  fontSize: '1rem',
+                  fontFamily: 'inherit'
+                }}
               >
-                <option value="all">Todos</option>
-                <option value="disponível">Disponível</option>
-                <option value="aceito">Aceito</option>
-                <option value="entregue">Entregue</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="city-filter" className="block text-sm font-medium text-gray-700 mb-2">
-                Destino
-              </label>
-              <select
-                id="city-filter"
-                value={filterCity}
-                onChange={e => setFilterCity(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Qualquer destino</option>
-                {destinyCities.map(city => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
+                <option value="">Selecionar estado...</option>
+                {ESTADOS_BRASIL.map(estado => (
+                  <option key={estado.sigla} value={estado.sigla}>{estado.nome} ({estado.sigla})</option>
                 ))}
               </select>
             </div>
-          </div>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-gray-600">Carregando fretes...</div>
+            <div>
+              <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px', color: '#333', fontSize: '0.95rem' }}>Cidade de Origem</label>
+              <select
+                value={filtros.cidade_origem}
+                onChange={(e) => setFiltros({ ...filtros, cidade_origem: e.target.value })}
+                disabled={!filtros.estado_origem}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  boxSizing: 'border-box',
+                  fontSize: '1rem',
+                  fontFamily: 'inherit',
+                  opacity: !filtros.estado_origem ? 0.5 : 1,
+                  cursor: !filtros.estado_origem ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <option value="">Selecionar cidade...</option>
+                {cidadesOrigem.map(cidade => (
+                  <option key={cidade} value={cidade}>{cidade}</option>
+                ))}
+              </select>
             </div>
-          ) : filteredFretes.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <p className="text-gray-600 mb-4">
-                  {fretes.length === 0
-                    ? 'Nenhum frete disponível no momento'
-                    : 'Nenhum frete encontrado com esses filtros'}
-                </p>
-                {fretes.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setFilterStatus('all');
-                      setFilterCity('');
-                    }}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Limpar filtros
-                  </button>
-                )}
-              </div>
+
+            {/* Destino */}
+            <div>
+              <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px', color: '#333', fontSize: '0.95rem' }}>Estado de Destino</label>
+              <select
+                value={filtros.estado_destino}
+                onChange={(e) => setFiltros({ ...filtros, estado_destino: e.target.value, cidade_destino: '' })}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  boxSizing: 'border-box',
+                  fontSize: '1rem',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <option value="">Selecionar estado...</option>
+                {ESTADOS_BRASIL.map(estado => (
+                  <option key={estado.sigla} value={estado.sigla}>{estado.nome} ({estado.sigla})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px', color: '#333', fontSize: '0.95rem' }}>Cidade de Destino</label>
+              <select
+                value={filtros.cidade_destino}
+                onChange={(e) => setFiltros({ ...filtros, cidade_destino: e.target.value })}
+                disabled={!filtros.estado_destino}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  boxSizing: 'border-box',
+                  fontSize: '1rem',
+                  fontFamily: 'inherit',
+                  opacity: !filtros.estado_destino ? 0.5 : 1,
+                  cursor: !filtros.estado_destino ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <option value="">Selecionar cidade...</option>
+                {cidadesDestino.map(cidade => (
+                  <option key={cidade} value={cidade}>{cidade}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Urgência */}
+            <div>
+              <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px', color: '#333', fontSize: '0.95rem' }}>Urgência</label>
+              <select
+                value={filtros.urgencia}
+                onChange={(e) => setFiltros({ ...filtros, urgencia: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  boxSizing: 'border-box',
+                  fontSize: '1rem',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <option value="todas">🟦 Todas</option>
+                <option value="normal">🟢 Normal</option>
+                <option value="alta">🟠 Alta</option>
+                <option value="muito alta">🔴 Muito Alta</option>
+              </select>
+            </div>
+
+            {/* Peso */}
+            <div>
+              <label style={{ fontWeight: '600', display: 'block', marginBottom: '8px', color: '#333', fontSize: '0.95rem' }}>
+                Peso: {filtros.peso_min.toLocaleString('pt-BR')} - {filtros.peso_max.toLocaleString('pt-BR')} kg
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="30000"
+                step="500"
+                value={filtros.peso_max}
+                onChange={(e) => setFiltros({ ...filtros, peso_max: parseInt(e.target.value) })}
+                style={{ width: '100%', cursor: 'pointer' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Lista de Fretes */}
+        <div>
+          <h3 style={{ color: '#333', marginBottom: '20px', fontSize: '1.2rem', fontWeight: '600' }}>
+            📦 {fretesFiltr.length} frete{fretesFiltr.length !== 1 ? 's' : ''} disponível{fretesFiltr.length !== 1 ? 's' : ''}
+          </h3>
+
+          {fretesFiltr.length === 0 ? (
+            <div style={{
+              background: 'white',
+              padding: '40px',
+              borderRadius: '10px',
+              textAlign: 'center',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
+            }}>
+              <p style={{ color: '#999', fontSize: '1.1rem' }}>Nenhum frete encontrado com estes filtros 😔</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredFretes.map(frete => (
-                <FreteCard key={frete.id} frete={frete} />
+            <div style={{ display: 'grid', gap: '20px' }}>
+              {fretesFiltr.map(frete => (
+                <div
+                  key={frete.id}
+                  style={{
+                    background: 'white',
+                    padding: '25px',
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    border: frete.urgencia === 'muito alta' ? '2px solid #ff4444' : frete.urgencia === 'alta' ? '2px solid #ff8800' : '1px solid #eee',
+                    borderLeft: '4px solid ' + (frete.urgencia === 'muito alta' ? '#ff4444' : frete.urgencia === 'alta' ? '#ff8800' : '#667eea')
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.15)';
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.2fr', gap: '30px', alignItems: 'start' }}>
+                    {/* Rota */}
+                    <div>
+                      <div style={{ marginBottom: '20px' }}>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>De</p>
+                        <h3 style={{ margin: '8px 0 0 0', color: '#333', fontSize: '1.2rem', fontWeight: '600' }}>📍 {frete.origem}</h3>
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Para</p>
+                        <h3 style={{ margin: '8px 0 0 0', color: '#333', fontSize: '1.2rem', fontWeight: '600' }}>📍 {frete.destino}</h3>
+                      </div>
+                    </div>
+
+                    {/* Detalhes */}
+                    <div>
+                      <div style={{ marginBottom: '15px' }}>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Carga</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '1.1rem', fontWeight: '600', color: '#333' }}>📦 {frete.peso_kg.toLocaleString('pt-BR')} kg</p>
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Descrição</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '0.95rem', color: '#666' }}>{frete.descricao}</p>
+                      </div>
+                    </div>
+
+                    {/* Distância e Tempo */}
+                    <div>
+                      <div style={{ marginBottom: '15px' }}>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Distância</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '1.3rem', fontWeight: '700', color: '#667eea' }}>{frete.distancia.toLocaleString('pt-BR')} km</p>
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Tempo Est.</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '1rem', fontWeight: '600', color: '#333' }}>⏱️ {frete.tempo_estimado}</p>
+                      </div>
+                    </div>
+
+                    {/* Valor e Urgência */}
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ marginBottom: '20px' }}>
+                        <p style={{ margin: 0, fontSize: '0.85rem', color: '#999', fontWeight: '600' }}>Valor da Carga</p>
+                        <h2 style={{ margin: '8px 0 0 0', color: '#667eea', fontSize: '2rem', fontWeight: '700' }}>
+                          R$ {frete.valor_r.toLocaleString('pt-BR')}
+                        </h2>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        gap: '10px',
+                        justifyContent: 'flex-end',
+                        marginBottom: '12px'
+                      }}>
+                        <button style={{
+                          padding: '12px 24px',
+                          background: '#667eea',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          fontSize: '0.95rem',
+                          transition: 'all 0.2s',
+                          flex: 1
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = '#556cd6'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = '#667eea'; e.currentTarget.style.transform = 'scale(1)'; }}
+                        >
+                          ✓ Aceitar
+                        </button>
+                      </div>
+                      <p style={{
+                        margin: 0,
+                        fontSize: '0.85rem',
+                        color: frete.urgencia === 'muito alta' ? '#ff4444' : frete.urgencia === 'alta' ? '#ff8800' : '#2ecc71',
+                        fontWeight: '700',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {frete.urgencia === 'muito alta' ? '🔴 URGENTE' : frete.urgencia === 'alta' ? '🟠 ALTA' : '🟢 NORMAL'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 };

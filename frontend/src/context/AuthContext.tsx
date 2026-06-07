@@ -38,6 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await apiService.login({ email, password });
       localStorage.setItem('jwt_token', response.access_token);
       setCurrentUser(response.user);
+      // Add small delay to ensure state updates propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
       localStorage.removeItem('jwt_token');
       throw error;
@@ -49,6 +51,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await apiService.signup(payload);
       localStorage.setItem('jwt_token', response.access_token);
       setCurrentUser(response.user);
+      // Add small delay to ensure state updates propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error) {
       localStorage.removeItem('jwt_token');
       throw error;
