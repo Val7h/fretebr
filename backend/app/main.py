@@ -33,8 +33,20 @@ from app.models import (
     FreteTracking, FreteCurrentLocation, TrackingSession, Notification
 )
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Create tables - apenas as ESSENCIAIS pro beta.
+# Os modulos referral/fuel_station tem mismatch UUID vs Integer nas FKs
+# (SQLite ignora, Postgres rejeita). Sao features pos-MVP - corrigir em P5.
+_BETA_TABLES_TO_SKIP = {
+    'referrals', 'referral_withdrawals',
+    'fuel_stations', 'fuel_station_attendants',
+    'fuel_referral_codes', 'fuel_station_referrals',
+    'fuel_discounts', 'fuel_attendant_withdrawals',
+}
+_tables_to_create = [
+    t for name, t in Base.metadata.tables.items()
+    if name not in _BETA_TABLES_TO_SKIP
+]
+Base.metadata.create_all(bind=engine, tables=_tables_to_create)
 
 # Rate limiter (global - usado por endpoints sensiveis)
 limiter = Limiter(key_func=get_remote_address)
