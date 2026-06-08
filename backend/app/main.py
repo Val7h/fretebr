@@ -63,14 +63,29 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.middleware("http")(request_id_middleware)
 
 # CORS middleware setup
+# Dev: localhost portas usadas pelo Vite.
+# Staging beta: dominio principal Vercel + alias git-branch.
+# Extras via env CORS_EXTRA_ORIGINS (CSV) sem precisar redeploy.
+import os as _os_cors
+
+_cors_extra = [
+    o.strip() for o in _os_cors.getenv("CORS_EXTRA_ORIGINS", "").split(",") if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        # Dev
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:3008",
         "http://localhost:3009",
-    ],
+        # Vercel - staging beta
+        "https://fretebr-web.vercel.app",
+        "https://fretebr-web-git-dev-valth-menezes-projects.vercel.app",
+    ] + _cors_extra,
+    # Permite previews de PR da Vercel: <project>-<hash>-<owner>.vercel.app
+    allow_origin_regex=r"https://fretebr-web-[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
