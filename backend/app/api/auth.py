@@ -41,7 +41,10 @@ def _clear_auth_cookies(response: Response):
     response.delete_cookie("fretebr_refresh", path="/api/auth")
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.schemas.user import UserCreate, UserLogin, UserResponse, Token, AuthResponse
+from app.schemas.user import (
+    UserCreate, UserLogin, UserResponse, Token, AuthResponse,
+    PasswordResetRequest, PasswordResetConfirm,
+)
 from app.crud.user import create_user, get_user_by_email, get_user_by_id, verify_password, hash_password, create_user_from_google
 # from app.routes.fuel_station import create_fuel_discount_for_motorista  # TODO: Fix circular import
 # from app.models import FuelReferralCode
@@ -102,6 +105,13 @@ def create_refresh_token(data: dict) -> str:
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def create_password_reset_token(user_id: int) -> str:
+    """JWT de reset de senha, expira em 1h."""
+    expire = datetime.utcnow() + timedelta(hours=1)
+    payload = {"sub": str(user_id), "exp": expire, "type": "password_reset"}
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(
     request: Request,
@@ -259,6 +269,95 @@ def refresh_token(request: Request, response: Response, payload: dict = None, db
         "refresh_token": new_refresh,
         "token_type": "bearer"
     }
+
+
+@router.post("/forgot-password")
+@_limiter.limit("3/minute")
+def forgot_password(request: Request, payload: PasswordResetRequest, db: Session = Depends(get_db)):
+    """
+    Solicita reset de senha.
+    Sempre retorna 200 (anti-enumeracao - nao revela se email existe).
+    Em prod com SMTP, envia email com link.
+    Em staging/dev sem SMTP, loga o link e (so em staging) retorna no body.
+    Rate limited: 3/min por IP.
+    """
+    user = get_user_by_email(db, payload.email)
+    response_body = {"message": "Se o email existir, enviaremos instrucoes de reset."}
+
+    if not user:
+        # Anti-enumeracao: nao revela
+        return response_body
+
+    token = create_password_reset_token(user.id)
+
+    # URL de reset (frontend tem que ter rota /reset-password?token=...)
+    front_url = os.getenv("FRONTEND_URL", "https://fretebr-web.vercel.app")
+    reset_link = f"{front_url}/reset-password?token={token}"
+
+    # Tenta enviar email se SMTP configurado
+    smtp_host = os.getenv("SMTP_HOST", "").strip()
+    if smtp_host:
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            smtp_user = os.getenv("SMTP_USER", "")
+            smtp_pass = os.getenv("SMTP_PASS", "")
+            smtp_from = os.getenv("SMTP_FROM", "no-reply@fretebr.com.br")
+            smtp_port = int(os.getenv("SMTP_PORT", "587"))
+            msg = MIMEText(
+                f"Ola {user.nome},\n\nClique no link para redefinir sua senha "
+                f"(valido por 1 hora):\n\n{reset_link}\n\nSe nao foi voce, ignore."
+            )
+            msg["Subject"] = "FreteBR - Redefinir senha"
+            msg["From"] = smtp_from
+            msg["To"] = user.email
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as smtp:
+                smtp.starttls()
+                if smtp_user:
+                    smtp.login(smtp_user, smtp_pass)
+                smtp.sendmail(smtp_from, [user.email], msg.as_string())
+            logger.info(f"[AUTH] reset email enviado para {user.email}")
+        except Exception as e:
+            logger.error(f"[AUTH] falha SMTP no reset de {user.email}: {e}")
+    else:
+        # Modo MOCK: loga o link (operador pode mandar manualmente pro user)
+        logger.warning(
+            f"[AUTH MOCK] SMTP nao configurado. Link reset para {user.email}: {reset_link}"
+        )
+
+    # Em staging/dev, devolve link no response pra facilitar teste manual
+    if os.getenv("ENVIRONMENT", "development").lower() in ("development", "staging") \
+            and not smtp_host:
+        response_body["debug_reset_link"] = reset_link
+
+    return response_body
+
+
+@router.post("/reset-password")
+@_limiter.limit("5/minute")
+def reset_password(request: Request, payload: PasswordResetConfirm, db: Session = Depends(get_db)):
+    """
+    Confirma reset: valida token + grava nova senha.
+    Rate limited: 5/min por IP.
+    """
+    try:
+        decoded = jwt.decode(payload.token, SECRET_KEY, algorithms=[ALGORITHM])
+        if decoded.get("type") != "password_reset":
+            raise HTTPException(status_code=401, detail="Token invalido")
+        user_id = int(decoded.get("sub", 0))
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Token invalido: {e}")
+
+    user = get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+
+    # Grava nova senha
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    logger.info(f"[AUTH] senha resetada para user_id={user.id}")
+    return {"message": "Senha redefinida com sucesso"}
+
 
 @router.get("/me", response_model=UserResponse)
 def get_me(user: UserResponse = Depends(get_current_user)):

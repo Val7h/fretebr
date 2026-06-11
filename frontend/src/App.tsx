@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { PostFretePage } from './pages/PostFretePage';
 import { FindFretePage } from './pages/FindFretePage';
 import { MyFretesPage } from './pages/MyFretesPage';
@@ -194,6 +196,8 @@ function App() {
       <HeaderNav />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/postar-frete" element={<ProtectedRoute><PostFretePage /></ProtectedRoute>} />

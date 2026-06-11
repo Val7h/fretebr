@@ -208,6 +208,15 @@ export const LoginPage = () => {
             >
               {isLoading ? 'Entrando...' : 'Entrar'}
             </button>
+
+            <div style={{ marginTop: '16px', textAlign: 'center' }}>
+              <a
+                href="/forgot-password"
+                style={{ color: '#667eea', fontSize: '0.9rem', textDecoration: 'none', fontWeight: 500 }}
+              >
+                🔑 Esqueci minha senha
+              </a>
+            </div>
           </form>
         )}
 
