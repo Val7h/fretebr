@@ -130,19 +130,19 @@ def get_current_user(
     if not token:
         token = request.cookies.get("fretebr_access")
     if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Você precisa estar logado para acessar")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
         if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Sessão inválida — faça login novamente")
         user_id = int(user_id)
     except JWTError as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
     user = get_user_by_id(db, user_id)
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="Usuário não encontrado")
 
     return user
 
@@ -201,7 +201,7 @@ def login(request: Request, response: Response, user: UserLogin, db: Session = D
     if not db_user or not verify_password(user.password, db_user.password_hash):
         client_ip = request.client.host if request.client else "unknown"
         logger.warning(f"[AUTH] Login falhou de {client_ip}")
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos")
 
     access_token = create_access_token(data={"sub": str(db_user.id)})
     refresh_token = create_refresh_token(data={"sub": str(db_user.id)})
@@ -241,21 +241,21 @@ def refresh_token(request: Request, response: Response, payload: dict = None, db
     if not rt:
         rt = request.cookies.get("fretebr_refresh")
     if not rt:
-        raise HTTPException(status_code=400, detail="refresh_token required")
+        raise HTTPException(status_code=400, detail="Token de renovação ausente")
 
     try:
         decoded = jwt.decode(rt, SECRET_KEY, algorithms=[ALGORITHM])
         if decoded.get("type") != "refresh":
-            raise HTTPException(status_code=401, detail="Not a refresh token")
+            raise HTTPException(status_code=401, detail="Tipo de token inválido")
         user_id = decoded.get("sub")
         if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Sessão inválida — faça login novamente")
     except JWTError as e:
         raise HTTPException(status_code=401, detail=f"Invalid refresh token: {e}")
 
     user = get_user_by_id(db, int(user_id))
     if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="Usuário não encontrado")
 
     # Gera novos tokens (rotacao do refresh)
     new_access = create_access_token(data={"sub": str(user.id)})

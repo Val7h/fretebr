@@ -10,6 +10,7 @@ import {
   COORDENADAS_CIDADES,
 } from '../data/freteData';
 import { MapaRotaLeaflet } from '../components/MapaRotaLeaflet';
+import { Loading, EmptyState, ErrorState } from '../components/UIStates';
 
 export const FindFretePage = () => {
   const [filtros, setFiltros] = useState({
@@ -247,41 +248,9 @@ export const FindFretePage = () => {
         {/* Lista de Fretes */}
         <div>
           {isLoading ? (
-            <div style={{
-              background: 'white',
-              padding: '40px',
-              borderRadius: '10px',
-              textAlign: 'center',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
-            }}>
-              <p style={{ color: '#666', fontSize: '1.1rem' }}>Carregando fretes...</p>
-            </div>
+            <Loading message="Buscando fretes disponíveis..." />
           ) : error ? (
-            <div style={{
-              background: 'white',
-              padding: '40px',
-              borderRadius: '10px',
-              textAlign: 'center',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-              borderLeft: '4px solid #ff4444'
-            }}>
-              <p style={{ color: '#ff4444', fontSize: '1.1rem' }}>{error}</p>
-              <button
-                onClick={loadFretes}
-                style={{
-                  marginTop: '20px',
-                  padding: '10px 20px',
-                  background: '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '600'
-                }}
-              >
-                Tentar Novamente
-              </button>
-            </div>
+            <ErrorState message={error} onRetry={loadFretes} />
           ) : (
             <>
               <h3 style={{ color: '#333', marginBottom: '20px', fontSize: '1.2rem', fontWeight: '600' }}>
@@ -289,15 +258,25 @@ export const FindFretePage = () => {
               </h3>
 
               {fretesFiltr.length === 0 ? (
-                <div style={{
-                  background: 'white',
-                  padding: '40px',
-                  borderRadius: '10px',
-                  textAlign: 'center',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
-                }}>
-                  <p style={{ color: '#999', fontSize: '1.1rem' }}>Nenhum frete encontrado com estes filtros 😔</p>
-                </div>
+                fretesApi.length === 0 ? (
+                  <EmptyState
+                    icon="🛣️"
+                    title="Ainda não temos fretes disponíveis"
+                    description="Estamos em beta — em breve mais clientes vão postar fretes aqui. Volte amanhã ou cadastre suas regiões preferidas."
+                  />
+                ) : (
+                  <EmptyState
+                    icon="🔍"
+                    title="Nenhum frete bate com seus filtros"
+                    description="Tente ampliar a faixa de peso ou tirar a cidade do filtro. Existem fretes disponíveis em outras rotas."
+                    ctaLabel="Limpar filtros"
+                    onCta={() => setFiltros({
+                      estado_origem: '', cidade_origem: '',
+                      estado_destino: '', cidade_destino: '',
+                      peso_min: 0, peso_max: 30000, urgencia: 'todas',
+                    })}
+                  />
+                )
               ) : (
             <div style={{ display: 'grid', gap: '20px' }}>
               {fretesFiltr.map(frete => (

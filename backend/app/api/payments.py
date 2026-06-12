@@ -57,7 +57,7 @@ def create_payment(
     if current_user.tipo != "shipper":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only shippers can create payments"
+            detail="Apenas o cliente que postou o frete pode criar o pagamento"
         )
 
     # Get match
@@ -65,7 +65,7 @@ def create_payment(
     if not db_match:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Match not found"
+            detail="Negociação não encontrada"
         )
 
     # Verify user is part of the match
@@ -74,7 +74,7 @@ def create_payment(
     if shipper_user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not part of this match"
+            detail="Você não faz parte desta negociação"
         )
 
     # Check match status: aceito, em_entrega ou finalizado podem gerar pagamento
@@ -93,13 +93,13 @@ def create_payment(
         if existing_transaction.status == TransactionStatus.pago:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Payment already completed for this match"
+                detail="Este frete já foi pago"
             )
         elif existing_transaction.status == TransactionStatus.pendente:
             if not is_payment_expired(existing_transaction.expires_at):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Payment request already exists. Complete or wait for expiry."
+                    detail="Já existe um Pix pendente. Conclua o pagamento ou aguarde expirar."
                 )
             else:
                 # Mark expired transaction
@@ -176,14 +176,14 @@ def get_payment_status(
     if not db_transaction:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Transaction not found"
+            detail="Transação não encontrada"
         )
 
     # Check authorization
     if current_user.id not in [db_transaction.shipper_id, db_transaction.motorista_id]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this transaction"
+            detail="Você não tem acesso a esta transação"
         )
 
     # If pending, check with Mercado Pago for updates
@@ -376,15 +376,15 @@ def simulate_payment_paid(
     if not is_placeholder and not allow:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Simulation disabled in production"
+            detail="Simulação de pagamento desabilitada em produção"
         )
 
     db_transaction = transaction_crud.get_transaction(db, transaction_id)
     if not db_transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
+        raise HTTPException(status_code=404, detail="Transação não encontrada")
 
     if current_user.id not in [db_transaction.shipper_id, db_transaction.motorista_id]:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(status_code=403, detail="Sem permissão para esta ação")
 
     # Idempotente: ja pago, retorna
     if db_transaction.status == TransactionStatus.pago:
@@ -420,7 +420,7 @@ def get_receipt(
     if not db_match:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Match not found"
+            detail="Negociação não encontrada"
         )
 
     # Check authorization
@@ -432,7 +432,7 @@ def get_receipt(
     if not is_motorista and not is_shipper:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this receipt"
+            detail="Você não tem acesso a este recibo"
         )
 
     # Get transaction
@@ -440,7 +440,7 @@ def get_receipt(
     if not db_transaction:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No transaction found for this match"
+            detail="Nenhuma transação encontrada para esta negociação"
         )
 
     # Check if paid

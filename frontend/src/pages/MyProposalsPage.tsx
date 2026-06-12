@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
+import { Loading, EmptyState, ErrorState, PageContainer, PageHeader } from '../components/UIStates';
 
 interface Proposal {
   id: number;
@@ -59,73 +60,25 @@ export const MyProposalsPage = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <p>Carregando propostas...</p>
-      </div>
-    );
-  }
-
-  if (erro) {
-    return (
-      <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <h1 style={{ color: '#333', fontSize: '2rem' }}>📝 Minhas Propostas</h1>
-        <div style={{ color: 'red', padding: '20px', background: '#fff0f0', borderRadius: '8px' }}>
-          {erro}
-        </div>
-        <button
-          onClick={loadPropostas}
-          style={{
-            marginTop: '20px',
-            padding: '10px 20px',
-            background: '#667eea',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-          }}
-        >
-          Tentar Novamente
-        </button>
-      </div>
-    );
-  }
+  if (isLoading) return <Loading message="Carregando suas propostas..." />;
 
   return (
-    <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <h1 style={{ color: '#333', fontSize: '2rem', marginBottom: '30px' }}>
-        📝 Minhas Propostas
-      </h1>
+    <PageContainer>
+      <PageHeader
+        title="📝 Minhas Propostas"
+        subtitle="Acompanhe o status das propostas que você fez."
+      />
 
-      {propostas.length === 0 ? (
-        <div
-          style={{
-            padding: '60px 40px',
-            textAlign: 'center',
-            background: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          }}
-        >
-          <p style={{ fontSize: '1.1rem', color: '#666', marginBottom: '20px' }}>
-            Você ainda não fez nenhuma proposta.
-          </p>
-          <a
-            href="/procurar-fretes"
-            style={{
-              padding: '12px 24px',
-              background: '#667eea',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '6px',
-              fontWeight: '600',
-              display: 'inline-block',
-            }}
-          >
-            Procurar Fretes
-          </a>
-        </div>
+      {erro ? (
+        <ErrorState message={erro} onRetry={loadPropostas} />
+      ) : propostas.length === 0 ? (
+        <EmptyState
+          icon="🚛"
+          title="Você ainda não fez nenhuma proposta"
+          description="Procure fretes na sua rota e mande uma proposta. Você pode negociar valor e prazo diretamente com o cliente."
+          ctaLabel="Procurar fretes"
+          ctaHref="/procurar-fretes"
+        />
       ) : (
         <div
           style={{
@@ -225,6 +178,6 @@ export const MyProposalsPage = () => {
           })}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 };

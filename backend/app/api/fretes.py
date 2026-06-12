@@ -30,7 +30,7 @@ def post_frete(
     if current_user.tipo != "shipper":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access denied: Only shippers can post. You are: {current_user.tipo}"
+            detail="Apenas clientes podem postar fretes. Você está cadastrado como motorista — entre como cliente para postar."
         )
 
     # Create frete
@@ -51,7 +51,7 @@ def get_meus_fretes(
     if current_user.tipo != UserType.motorista.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only motoristas can view their fretes"
+            detail="Apenas o autor pode listar seus fretes"
         )
 
     fretes = get_motorista_fretes(db, current_user.id, skip=skip, limit=limit)
@@ -88,7 +88,7 @@ def get_frete_details(
     if not frete:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Frete not found"
+            detail="Frete não encontrado"
         )
     return frete
 
@@ -106,7 +106,7 @@ def update_frete_details(
     if current_user.tipo != UserType.motorista.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only motoristas can update fretes"
+            detail="Apenas o autor pode editar fretes"
         )
 
     # Get the frete
@@ -114,21 +114,21 @@ def update_frete_details(
     if not frete:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Frete not found"
+            detail="Frete não encontrado"
         )
 
     # Check if current user owns the frete
     if frete.motorista_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only update your own fretes"
+            detail="Você só pode editar seus próprios fretes"
         )
 
     # Check if frete is still available for updates
     if frete.status != "disponível":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only update fretes with status 'disponível'"
+            detail="Só é possível editar fretes com status 'disponível'"
         )
 
     # Update frete
@@ -148,7 +148,7 @@ def delete_frete_details(
     if current_user.tipo != UserType.motorista.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only motoristas can delete fretes"
+            detail="Apenas o autor pode excluir fretes"
         )
 
     # Get the frete
@@ -156,14 +156,14 @@ def delete_frete_details(
     if not frete:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Frete not found"
+            detail="Frete não encontrado"
         )
 
     # Check if current user owns the frete
     if frete.motorista_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only delete your own fretes"
+            detail="Você só pode excluir seus próprios fretes"
         )
 
     # Delete frete

@@ -25,7 +25,7 @@ def create_match(
     if current_user.tipo != "motorista":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only motoristas can create proposals"
+            detail="Apenas motoristas podem fazer propostas"
         )
 
     # Validate frete exists
@@ -33,7 +33,7 @@ def create_match(
     if not frete:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Frete not found"
+            detail="Frete não encontrado"
         )
 
     # Check if motorista already proposed to this frete
@@ -48,7 +48,7 @@ def create_match(
     if existing_match:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You already have an active proposal for this frete"
+            detail="Você já tem uma proposta ativa neste frete"
         )
 
     # Create match
@@ -91,14 +91,14 @@ def get_frete_matches(
     if not frete:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Frete not found"
+            detail="Frete não encontrado"
         )
 
     # Validate user is the shipper who posted this frete
     if frete.motorista_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only view proposals for your own fretes"
+            detail="Você só pode ver propostas dos seus próprios fretes"
         )
 
     # Get matches
@@ -136,7 +136,7 @@ def get_my_proposals(
     if current_user.tipo != "motorista":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only motoristas can view proposals"
+            detail="Apenas motoristas podem ver suas propostas"
         )
 
     matches = db.query(Match).filter(
@@ -172,7 +172,7 @@ def accept_match(
     if not match:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Match not found"
+            detail="Negociação não encontrada"
         )
 
     # Get frete
@@ -182,7 +182,7 @@ def accept_match(
     if frete.motorista_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only accept proposals for your own fretes"
+            detail="Você só pode aceitar propostas dos seus próprios fretes"
         )
 
     # Validar transicao via state machine (pendente -> aceito)
@@ -230,7 +230,7 @@ def reject_match(
     if not match:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Match not found"
+            detail="Negociação não encontrada"
         )
 
     # Get frete
@@ -240,7 +240,7 @@ def reject_match(
     if frete.motorista_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only reject proposals for your own fretes"
+            detail="Você só pode rejeitar propostas dos seus próprios fretes"
         )
 
     # Validar transicao via state machine
@@ -273,7 +273,7 @@ def get_match(
     if not match:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Match not found"
+            detail="Negociação não encontrada"
         )
 
     frete = db.query(Frete).filter(Frete.id == match.frete_id).first()
@@ -283,7 +283,7 @@ def get_match(
     if current_user.id != match.motorista_id and current_user.id != frete.motorista_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only view matches you are involved in"
+            detail="Você só pode ver negociações em que está envolvido"
         )
 
     return {

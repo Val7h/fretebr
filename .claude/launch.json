@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fretebr-front",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:\\Users\\Admin\\FreteBR\\frontend", "run", "dev"],
+      "port": 3001
+    }
+  ]
+}
