@@ -30,7 +30,7 @@ print("  Shippers:", end=" ")
 for i in range(1, 6):
     r = requests.post(f'{BASE_URL}/auth/signup', json={
         'email': f'sh{i}_{TIMESTAMP}@test.com',
-        'password': '123',
+        'password': 'senha123',
         'tipo': 'shipper',
         'nome': f'Shipper{i}'
     }, timeout=10)
@@ -50,7 +50,7 @@ print("  Motoristas:", end=" ")
 for i in range(1, 6):
     r = requests.post(f'{BASE_URL}/auth/signup', json={
         'email': f'mo{i}_{TIMESTAMP}@test.com',
-        'password': '123',
+        'password': 'senha123',
         'tipo': 'motorista',
         'nome': f'Motorista{i}'
     }, timeout=10)

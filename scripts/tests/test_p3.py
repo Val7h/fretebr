@@ -22,13 +22,13 @@ print("\n=== TESTE SPRINT P3 ===\n")
 print("--- P3.1: Payload Pix do MOCK ---")
 # signup + match + criar pagamento + ver formato
 r = requests.post(f"{API}/auth/signup", json={
-    "email": f"p3sh_{TS}@test.com", "password": "123",
+    "email": f"p3sh_{TS}@test.com", "password": "senha123",
     "tipo": "shipper", "nome": "P3 Ship"
 })
 sh = r.json(); sh_token = sh["access_token"]; sh_id = sh["user"]["id"]
 
 r = requests.post(f"{API}/auth/signup", json={
-    "email": f"p3mo_{TS}@test.com", "password": "123",
+    "email": f"p3mo_{TS}@test.com", "password": "senha123",
     "tipo": "motorista", "nome": "P3 Mot"
 })
 mo = r.json(); mo_token = mo["access_token"]

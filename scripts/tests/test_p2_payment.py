@@ -21,7 +21,7 @@ print("\n=== TESTE SPRINT P2 - FLUXO PIX END-TO-END ===\n")
 # Setup
 print("--- Setup: criar shipper + motorista + frete + match aceito ---")
 r = requests.post(f"{API}/auth/signup", json={
-    "email": f"p2sh_{TS}@test.com", "password": "123",
+    "email": f"p2sh_{TS}@test.com", "password": "senha123",
     "tipo": "shipper", "nome": "P2 Ship"
 })
 sh = r.json()
@@ -30,7 +30,7 @@ sh_id = sh["user"]["id"]
 check("Shipper criado", r.status_code == 200, f"id={sh_id}")
 
 r = requests.post(f"{API}/auth/signup", json={
-    "email": f"p2mo_{TS}@test.com", "password": "123",
+    "email": f"p2mo_{TS}@test.com", "password": "senha123",
     "tipo": "motorista", "nome": "P2 Mot"
 })
 mo = r.json()
@@ -83,7 +83,7 @@ check("Status inicial = pendente", status == "pendente", f"got={status}")
 print("\n--- P2.3: Autorizacao ---")
 # Outro usuario nao pode ver
 r = requests.post(f"{API}/auth/signup", json={
-    "email": f"p2hk_{TS}@test.com", "password": "123",
+    "email": f"p2hk_{TS}@test.com", "password": "senha123",
     "tipo": "motorista", "nome": "Hacker"
 })
 hk_token = r.json()["access_token"]

@@ -73,7 +73,7 @@ print("\n--- P1.3: State Machine do Match ---")
 
 # Setup: shipper + motorista + frete + proposta
 r = requests.post(f"{API}/auth/signup", json={
-    "email": f"p1mot_{TS}@test.com", "password": "123",
+    "email": f"p1mot_{TS}@test.com", "password": "senha123",
     "tipo": "motorista", "nome": "Mot P1"
 })
 mot_token = r.json()["access_token"]
